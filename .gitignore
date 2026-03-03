@@ -11,6 +11,5 @@ __pycache__/
 # OS files
 .DS_Store
 
-# Large / raw data
 data/raw/
 output/
