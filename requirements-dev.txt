@@ -1,0 +1,3 @@
+pytest
+pytest-cov
+# Other testing libraries can be added here
