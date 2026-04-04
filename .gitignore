@@ -61,3 +61,7 @@ Thumbs.db
 !README.md
 !LICENSE
 !notebooks/
+
+# Keep outputs folder structure but ignore generated files
+outputs/*
+!outputs/.gitkeep
