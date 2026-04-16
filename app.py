@@ -101,6 +101,39 @@ BRISTOL_CENTER = dict(lat=51.4545, lon=-2.5879)
 def make_choropleth(geojson, locations, z, colorscale,
                     title, colorbar_title, zmin=None, zmax=None,
                     hover_template=None, height=460):
+
+    # Check if coordinates are in BNG (large numbers) or WGS84
+    try:
+        sample_coord = geojson["features"][0]["geometry"]["coordinates"][0][0]
+        if isinstance(sample_coord[0], list):
+            sample_coord = sample_coord[0]
+        x, y = sample_coord[0], sample_coord[1]
+
+        # BNG coordinates are large numbers (e.g. 360000, 170000)
+        # WGS84 coordinates are small (e.g. -2.5, 51.4)
+        if abs(x) > 1000:
+            # Coordinates are in BNG — convert to WGS84
+            import pyproj
+            transformer = pyproj.Transformer.from_crs(
+                "EPSG:27700", "EPSG:4326", always_xy=True)
+
+            def convert_ring(ring):
+                return [list(transformer.transform(c[0], c[1]))
+                        for c in ring]
+
+            for feature in geojson["features"]:
+                geom = feature["geometry"]
+                if geom["type"] == "Polygon":
+                    geom["coordinates"] = [
+                        convert_ring(ring)
+                        for ring in geom["coordinates"]]
+                elif geom["type"] == "MultiPolygon":
+                    geom["coordinates"] = [
+                        [convert_ring(ring) for ring in polygon]
+                        for polygon in geom["coordinates"]]
+    except Exception:
+        pass
+
     fig = go.Figure(go.Choroplethmapbox(
         geojson=geojson,
         locations=locations,
@@ -113,24 +146,10 @@ def make_choropleth(geojson, locations, z, colorscale,
         hovertemplate=hover_template or
             "<b>%{location}</b><br>Value: %{z}<extra></extra>",
     ))
-    # Calculate centre from data
-    lats = [f["geometry"]["coordinates"][0][0][1]
-            if f["geometry"]["type"] == "Polygon"
-            else f["geometry"]["coordinates"][0][0][0][1]
-            for f in geojson["features"]
-            if f["geometry"] is not None]
-    lons = [f["geometry"]["coordinates"][0][0][0]
-            if f["geometry"]["type"] == "Polygon"
-            else f["geometry"]["coordinates"][0][0][0][0]
-            for f in geojson["features"]
-            if f["geometry"] is not None]
-    center_lat = np.mean(lats) if lats else 51.4545
-    center_lon = np.mean(lons) if lons else -2.5879
-
     fig.update_layout(
         mapbox=dict(
             style="carto-positron",
-            center=dict(lat=center_lat, lon=center_lon),
+            center=dict(lat=51.4545, lon=-2.5879),
             zoom=10.5),
         margin=dict(l=0, r=0, t=35, b=0),
         height=height,
