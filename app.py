@@ -65,17 +65,26 @@ def load_summary_stats():
 
 @st.cache_data
 def load_house_clean():
-    path = DATA_DIR / "house_prices_bristol_clean.csv"
-    if not path.exists():
-        return None
-    return pd.read_csv(path)
+    # Try CSV first, then ZIP
+    csv_path = DATA_DIR / "house_prices_bristol_clean.csv"
+    zip_path = DATA_DIR / "house_prices_bristol_clean.zip"
+    if csv_path.exists():
+        return pd.read_csv(csv_path)
+    elif zip_path.exists():
+        return pd.read_csv(zip_path, compression="zip")
+    return None
 
 @st.cache_data
 def load_crime_clean():
-    path = DATA_DIR / "crime_bristol_clean.csv"
-    if not path.exists():
+    # Try CSV first, then ZIP
+    csv_path = DATA_DIR / "crime_bristol_clean.csv"
+    zip_path = DATA_DIR / "crime_bristol_clean.zip"
+    if csv_path.exists():
+        df = pd.read_csv(csv_path)
+    elif zip_path.exists():
+        df = pd.read_csv(zip_path, compression="zip")
+    else:
         return None
-    df = pd.read_csv(path)
     df["Month"] = pd.to_datetime(df["Month"], errors="coerce")
     df["year"]  = df["Month"].dt.year
     return df
