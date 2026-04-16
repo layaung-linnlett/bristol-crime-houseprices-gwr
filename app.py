@@ -13,7 +13,6 @@ Deploy:
 import json
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -89,8 +88,16 @@ def load_regression_data():
     path = DATA_DIR / "regression_dataset.geojson"
     if not path.exists():
         return None
-    gdf = gpd.read_file(path)
-    return gdf.to_crs("EPSG:4326")
+    with open(path, "r") as f:
+        geojson = json.load(f)
+    # Convert to DataFrame from GeoJSON features
+    rows = []
+    for feature in geojson["features"]:
+        row = feature["properties"].copy()
+        row["geometry"] = feature["geometry"]
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    return df, geojson
 
 @st.cache_data
 def load_summary_stats():
@@ -120,7 +127,10 @@ def load_crime_clean():
     df["year"]  = df["Month"].dt.year
     return df
 
-reg_gdf  = load_regression_data()
+result   = load_regression_data()
+reg_gdf  = result[0] if result is not None else None
+geojson_cache = result[1] if result is not None else None
+DATA_AVAILABLE = reg_gdf is not None
 stats    = load_summary_stats()
 house_df = load_house_clean()
 crime_df = load_crime_clean()
