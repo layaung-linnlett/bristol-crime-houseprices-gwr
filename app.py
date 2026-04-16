@@ -552,64 +552,126 @@ elif page == "📈  OLS Baseline Model":
         '<div class="main-header">Global OLS Baseline Model</div>',
         unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">A single average relationship across all 182 LSOAs</div>',
+        '<div class="sub-header">Step 1: Fit a single average relationship '
+        'across all 182 LSOAs — then test whether it is adequate</div>',
         unsafe_allow_html=True)
 
-    col_l, col_r = st.columns([1, 1.2])
+    # ── Narrative intro ────────────────────────────────────────────────────────
+    st.markdown("""
+    The global OLS model asks: *on average across all of Bristol, how much
+    does a 1-unit increase in log crime reduce log median house price?*
+    It gives one answer for the entire city. We fit it first as a baseline —
+    then test whether that single answer is actually appropriate.
+    """)
 
-    with col_l:
-        st.markdown("### Why VIF mattered")
-        st.markdown(
-            "Initial check with 6 predictors revealed severe collinearity:")
-        st.dataframe(pd.DataFrame({
+    st.markdown("---")
+
+    # ── Section 1: VIF ─────────────────────────────────────────────────────────
+    st.markdown("### Step 1 — Check for multicollinearity (VIF)")
+    st.markdown("""
+    Before fitting OLS, we check whether any predictors are so highly
+    correlated with each other that their individual effects cannot be
+    reliably estimated. **Variance Inflation Factor (VIF) > 5 is a warning;
+    VIF > 10 is serious.**
+    """)
+
+    col_vif, col_vif_explain = st.columns([1.2, 1])
+
+    with col_vif:
+        vif_data = {
             "Predictor":  ["log(Crime)", "Prop. Flats",
                            "⚠️ Prop. Leasehold",
                            "Dist. to Centre", "Schools", "Dist. to Bus"],
             "VIF":        [11.54, 29.64, 34.73, 7.80, 1.65, 3.86],
-            "Action":     ["Keep", "Keep", "Remove",
+            "Status":     ["Keep", "Keep", "❌ Remove",
                            "Keep", "Keep", "Keep"],
-        }), use_container_width=True, hide_index=True)
-        st.markdown(
-            "In the UK, flats are almost always leasehold — the two variables "
-            "capture nearly identical information. After removing `prop_leasehold`, "
-            "all remaining VIF values fell below 5.")
+        }
+        vif_df = pd.DataFrame(vif_data)
+        st.table(vif_df)
 
-        st.markdown("### OLS fit metrics")
+    with col_vif_explain:
+        st.markdown("""
+        **Why `prop_leasehold` was removed:**
+
+        In England, flats are almost always sold as leasehold — meaning
+        `prop_flats` and `prop_leasehold` capture nearly identical
+        information. Their VIF values (29.64 and 34.73) confirm this.
+
+        Including both would make individual coefficient estimates
+        unreliable — the model cannot separate the effect of one
+        from the other.
+
+        **After removing `prop_leasehold`:**
+        All remaining VIF values fall below 5 ✓
+        No serious multicollinearity remains.
+        """)
+        st.success("✓ Final model: 5 predictors, all VIF < 5")
+
+    st.markdown("---")
+
+    # ── Section 2: Model results ───────────────────────────────────────────────
+    st.markdown("### Step 2 — Fit OLS and interpret results")
+
+    col_l, col_r = st.columns([1, 1.3])
+
+    with col_l:
+        st.markdown("#### Model fit")
+
         ols_r2     = stats.get("ols_r2",     0.1084)
         ols_adj_r2 = stats.get("ols_adj_r2", 0.0831)
         ols_aicc   = stats.get("ols_aicc",  -84.17)
+
         m1, m2, m3 = st.columns(3)
         m1.metric("R²",          f"{ols_r2:.3f}")
         m2.metric("Adjusted R²", f"{ols_adj_r2:.3f}")
         m3.metric("AICc",        f"{ols_aicc:.1f}")
-        st.markdown(
-            '<div class="warning-box">⚠️ <b>OLS explains only 10.8% of price '
-            'variation.</b> A single global model cannot capture Bristol\'s '
-            'spatial complexity.</div>', unsafe_allow_html=True)
 
-        st.markdown("### Moran's I on OLS residuals")
-        mi   = stats.get("morans_I",       0.4775)
-        mi_p = stats.get("morans_pvalue",  0.001)
-        a1, a2 = st.columns(2)
-        a1.metric("Moran's I", f"{mi:.4f}")
-        a2.metric("p-value",   f"{mi_p:.3f}")
-        st.markdown(
-            '<div class="warning-box">⚠️ <b>Strong spatial autocorrelation '
-            'in OLS residuals (p = 0.001).</b> The global model violates the '
-            'independence assumption → GWR is needed.</div>',
-            unsafe_allow_html=True)
+        st.error(
+            f"🔴 **R² = {ols_r2:.3f}** — OLS explains only "
+            f"**{ols_r2*100:.1f}%** of the variation in log median "
+            f"house prices across Bristol's 182 LSOAs. The remaining "
+            f"**{(1-ols_r2)*100:.1f}%** is unexplained. This is a "
+            f"deliberately parsimonious model — but the low R² also "
+            f"signals that a *global* average is a poor fit for a "
+            f"spatially heterogeneous city."
+        )
+
+        st.markdown("#### Crime coefficient interpretation")
+        st.markdown("""
+        The crime coefficient of **−0.0778** is the most important result.
+
+        Using the formula `(exp(β) − 1) × 100`:
+        """)
+        crime_pct = (np.exp(-0.0778) - 1) * 100
+        st.metric(
+            "Price effect of crime",
+            f"{crime_pct:.1f}% per log unit",
+            delta="Statistically significant (p < 0.001)",
+            delta_color="inverse"
+        )
+        st.markdown("""
+        A one-unit increase in log(total crimes) is associated with a
+        **~7.5% decrease** in median house price, holding all other
+        predictors constant.
+
+        But this is a *city-wide average* — GWR will show this effect
+        ranges from **−24.4%** to **+2.0%** depending on location.
+        """)
 
     with col_r:
-        st.markdown("### OLS coefficient plot")
+        st.markdown("#### Which predictors matter? (95% confidence intervals)")
         st.markdown(
-            "Blue = significant (p < 0.05). Grey = not significant. "
-            "Only crime and distance to centre matter globally.")
+            "Blue dots = significant (p < 0.05). "
+            "Grey = not significant. "
+            "If the CI crosses zero, the effect is indistinguishable from chance.")
+
         coefs   = [-0.0778, -0.013, -0.021, -0.025,  0.045]
         pvals   = [ 0.001,   0.894,  0.018,  0.106,  0.534]
-        labels  = ["log(Crime)", "Prop. Flats", "Dist. to Centre",
-                   "Schools Count", "Dist. to Bus Stop"]
+        labels  = ["log(Crime)", "Prop. Flats",
+                   "Dist. to Centre (km)",
+                   "Schools Count", "Dist. to Bus Stop (km)"]
         ci_half = [ 0.023,   0.095,  0.009,  0.016,  0.071]
-        colours = ["#4c72b0" if p < 0.05 else "#aaaaaa" for p in pvals]
+        colours = ["#4c72b0" if p < 0.05 else "#bbbbbb" for p in pvals]
 
         fig = go.Figure()
         for i, (label, coef, p, ci, colour) in enumerate(
@@ -617,46 +679,125 @@ elif page == "📈  OLS Baseline Model":
         ):
             fig.add_trace(go.Scatter(
                 x=[coef], y=[label], mode="markers",
-                marker=dict(size=11, color=colour),
+                marker=dict(size=13, color=colour,
+                            line=dict(width=1.5, color="white")),
                 error_x=dict(type="data", array=[ci], arrayminus=[ci],
-                             visible=True, color=colour, thickness=2),
+                             visible=True, color=colour, thickness=2.5),
                 showlegend=False,
                 hovertemplate=(
                     f"<b>{label}</b><br>"
-                    f"Coef: {coef:.4f}<br>"
-                    f"p = {p:.3f}<extra></extra>"),
+                    f"Coefficient: {coef:.4f}<br>"
+                    f"95% CI: [{coef-ci:.4f}, {coef+ci:.4f}]<br>"
+                    f"p-value: {p:.3f}<br>"
+                    f"{'✓ Significant' if p < 0.05 else '✗ Not significant'}"
+                    f"<extra></extra>"),
             ))
-        fig.add_vline(x=0, line_dash="dash", line_color="black", opacity=0.4)
+
+        fig.add_vline(x=0, line_dash="dash",
+                      line_color="black", opacity=0.4)
+        fig.add_vrect(x0=-0.02, x1=0.02,
+                      fillcolor="grey", opacity=0.05,
+                      line_width=0,
+                      annotation_text="Near zero",
+                      annotation_position="top")
         fig.update_layout(
-            xaxis_title="Coefficient (effect on log median price)",
-            plot_bgcolor="white", height=300,
-            margin=dict(l=160, r=20, t=20, b=40))
+            xaxis_title="Coefficient (effect on log median house price)",
+            plot_bgcolor="white", height=320,
+            margin=dict(l=180, r=20, t=30, b=50),
+            xaxis=dict(zeroline=True, zerolinecolor="black",
+                       zerolinewidth=1))
         st.plotly_chart(fig, use_container_width=True)
 
+        st.info(
+            "💡 Only **log(Crime)** (p < 0.001) and **Distance to Centre** "
+            "(p = 0.018) are statistically significant. Proportion of flats, "
+            "schools count, and bus distance show wide CIs crossing zero — "
+            "their effects cannot be reliably estimated at the global level. "
+            "GWR may reveal significant *local* effects hidden by the global average."
+        )
+
+    st.markdown("---")
+
+    # ── Section 3: Moran's I ───────────────────────────────────────────────────
+    st.markdown("### Step 3 — Test whether OLS residuals are spatially random")
+    st.markdown("""
+    If OLS is a good fit, its residuals (prediction errors) should be
+    **spatially random** — no pattern in where the model over- or
+    under-predicts. We test this formally with **Moran's I**.
+    """)
+
+    col_m, col_map = st.columns([1, 1.5])
+
+    with col_m:
+        mi   = stats.get("morans_I",      0.4775)
+        mi_p = stats.get("morans_pvalue", 0.001)
+
+        st.markdown("#### Moran's I result")
+        a1, a2 = st.columns(2)
+        a1.metric("Moran's I",   f"{mi:.4f}")
+        a2.metric("p-value",     f"{mi_p:.3f}")
+
+        st.markdown(f"""
+        **Interpretation:**
+        - Moran's I ranges from −1 (dispersed) to +1 (clustered)
+        - Expected value under randomness: −0.006
+        - Observed value: **{mi:.4f}** — far above expected
+        - p = {mi_p:.3f} → **statistically significant**
+
+        This means neighbouring LSOAs have **similar prediction errors**.
+        Where OLS under-predicts in one area, it tends to
+        under-predict in surrounding areas too.
+        """)
+
+        st.error(
+            f"🔴 **OLS FAILS the spatial independence test.** "
+            f"Moran's I = {mi:.4f} (p = {mi_p:.3f}) confirms strong "
+            f"positive spatial autocorrelation in residuals. "
+            f"The global model systematically misses spatial structure "
+            f"in Bristol's housing market. **GWR is needed.**"
+        )
+
+    with col_map:
         if DATA_AVAILABLE and "ols_residual" in reg_df.columns:
-            st.markdown("### OLS residual map")
-            st.markdown(
-                "Spatial clustering of similar colours confirms Moran's I. "
-                "Red = under-predicted. Blue = over-predicted.")
+            st.markdown("#### Residual map — can you see the clustering?")
             max_abs = reg_df["ols_residual"].abs().max()
-            st.plotly_chart(make_choropleth(
+            fig_r = make_choropleth(
                 geojson=geojson,
                 locations=reg_df["lsoa_code"],
                 z=reg_df["ols_residual"],
-                colorscale=[[0, "#2166ac"], [0.5, "#f7f7f7"], [1, "#d6604d"]],
-                title="OLS Residuals by LSOA",
-                colorbar_title="Residual",
+                colorscale=[
+                    [0,   "#2166ac"],
+                    [0.5, "#f7f7f7"],
+                    [1,   "#d6604d"]],
+                title="OLS Residuals by LSOA — Bristol",
+                colorbar_title="Residual<br>(log price)",
                 zmin=-max_abs, zmax=max_abs,
                 hover_template=(
                     "<b>%{location}</b><br>"
-                    "Residual: %{z:.3f}<extra></extra>"),
-                height=380,
-            ), use_container_width=True)
-        elif DATA_AVAILABLE:
-            st.info(
-                "OLS residual column not found. Re-run the save cell in your "
-                "notebook to include `ols_residual` in the GeoJSON.")
+                    "Residual: %{z:.3f}<br>"
+                    "Positive = under-predicted<br>"
+                    "Negative = over-predicted"
+                    "<extra></extra>"),
+                height=420,
+            )
+            st.plotly_chart(fig_r, use_container_width=True)
+            st.caption(
+                "🔴 Red cluster (north/north-west) = OLS consistently "
+                "under-predicts prices here. "
+                "🔵 Blue cluster (south/south-east) = OLS consistently "
+                "over-predicts. This spatial pattern is exactly what "
+                "Moran's I = 0.4775 quantifies.")
+        else:
+            st.info("Upload regression_dataset.geojson to see the residual map.")
 
+    st.markdown("---")
+    st.success(
+        "✅ **Conclusion from OLS:** The global model explains only 10.8% "
+        "of price variation, and its residuals are strongly spatially "
+        "clustered (Moran's I = 0.4775, p = 0.001). A spatially varying "
+        "model — **Geographically Weighted Regression** — is both "
+        "statistically justified and necessary. → See GWR Results"
+    )
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 4 — GWR RESULTS
 # ══════════════════════════════════════════════════════════════════════════════
