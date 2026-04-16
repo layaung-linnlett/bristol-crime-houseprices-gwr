@@ -113,9 +113,25 @@ def make_choropleth(geojson, locations, z, colorscale,
         hovertemplate=hover_template or
             "<b>%{location}</b><br>Value: %{z}<extra></extra>",
     ))
+    # Calculate centre from data
+    lats = [f["geometry"]["coordinates"][0][0][1]
+            if f["geometry"]["type"] == "Polygon"
+            else f["geometry"]["coordinates"][0][0][0][1]
+            for f in geojson["features"]
+            if f["geometry"] is not None]
+    lons = [f["geometry"]["coordinates"][0][0][0]
+            if f["geometry"]["type"] == "Polygon"
+            else f["geometry"]["coordinates"][0][0][0][0]
+            for f in geojson["features"]
+            if f["geometry"] is not None]
+    center_lat = np.mean(lats) if lats else 51.4545
+    center_lon = np.mean(lons) if lons else -2.5879
+
     fig.update_layout(
-        mapbox=dict(style="carto-positron",
-                    center=BRISTOL_CENTER, zoom=10.5),
+        mapbox=dict(
+            style="carto-positron",
+            center=dict(lat=center_lat, lon=center_lon),
+            zoom=10.5),
         margin=dict(l=0, r=0, t=35, b=0),
         height=height,
         title=dict(text=title, font=dict(size=13), x=0.5),
@@ -304,6 +320,7 @@ elif page == "📊  Exploratory Analysis":
                 xaxis_title="Year", yaxis_title="Recorded Crimes",
                 title="Crime Trends by Type — Bristol (2021–2025)",
                 plot_bgcolor="white", height=400,
+                xaxis=dict(tickmode="linear", tick0=2021, dtick=1),
                 legend=dict(x=1.02, y=1))
             st.plotly_chart(fig, use_container_width=True)
         else:
