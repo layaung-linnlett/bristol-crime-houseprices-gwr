@@ -276,83 +276,213 @@ elif page == "📊  Exploratory Analysis":
         '<div class="main-header">Exploratory Analysis</div>',
         unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Understanding the data before modelling</div>',
+        '<div class="sub-header">Understanding Bristol\'s crime and '
+        'housing landscape before modelling</div>',
         unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(
-        ["Price distribution", "Crime trends", "Spatial maps"])
+        ["💰 Price distribution", "🚨 Crime trends", "🗺️ Spatial maps"])
 
+    # ── Tab 1 — Price distribution ─────────────────────────────────────────────
     with tab1:
-        st.markdown("#### House sale price distribution")
-        st.markdown(
-            "Right-skew confirms why **log transformation** is applied before "
-            "regression. The mean sits above the median due to high-value properties.")
+        st.markdown("### What do Bristol house prices look like?")
+        st.markdown("""
+        Before modelling, we need to understand the shape of the price data.
+        The histogram below shows all **34,543 cleaned house transactions**
+        across Bristol from 2021 to 2025.
+        """)
+
         if house_df is not None:
             med = house_df["price"].median()
             avg = house_df["price"].mean()
+            skew = house_df["price"].skew()
+
+            # Key stats row
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Median price",  f"£{med:,.0f}")
+            k2.metric("Mean price",    f"£{avg:,.0f}")
+            k3.metric("Price skew",    f"{skew:.2f}")
+            k4.metric("Transactions",  f"{len(house_df):,}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
             fig = go.Figure()
             fig.add_trace(go.Histogram(
                 x=house_df["price"], nbinsx=50,
-                marker_color="#4c72b0", opacity=0.85))
-            fig.add_vline(x=med, line_dash="dash", line_color="crimson",
-                          annotation_text=f"Median: £{med:,.0f}",
-                          annotation_position="top right")
-            fig.add_vline(x=avg, line_dash="dot", line_color="darkorange",
-                          annotation_text=f"Mean: £{avg:,.0f}",
-                          annotation_position="top left")
+                marker_color="#4c72b0", opacity=0.85,
+                name="House sales",
+                hovertemplate="Price: £%{x:,.0f}<br>Count: %{y}<extra></extra>",
+            ))
+
+            # Median line — more visible
+            fig.add_shape(type="line",
+                x0=med, x1=med, y0=0, y1=1,
+                xref="x", yref="paper",
+                line=dict(color="crimson", width=3, dash="dash"))
+            fig.add_annotation(
+                x=med, y=0.97, xref="x", yref="paper",
+                text=f"<b>Median<br>£{med:,.0f}</b>",
+                showarrow=True, arrowhead=2, arrowcolor="crimson",
+                ax=-60, ay=0,
+                font=dict(size=12, color="crimson"),
+                bgcolor="white", bordercolor="crimson", borderwidth=1)
+
+            # Mean line — more visible
+            fig.add_shape(type="line",
+                x0=avg, x1=avg, y0=0, y1=1,
+                xref="x", yref="paper",
+                line=dict(color="#e67e00", width=3, dash="dot"))
+            fig.add_annotation(
+                x=avg, y=0.85, xref="x", yref="paper",
+                text=f"<b>Mean<br>£{avg:,.0f}</b>",
+                showarrow=True, arrowhead=2, arrowcolor="#e67e00",
+                ax=60, ay=0,
+                font=dict(size=12, color="#e67e00"),
+                bgcolor="white", bordercolor="#e67e00", borderwidth=1)
+
             fig.update_layout(
-                xaxis_title="Sale Price (£)", yaxis_title="Number of Sales",
-                title="Distribution of House Sale Prices — Bristol (2021–2025)",
-                plot_bgcolor="white", height=400)
+                xaxis_title="Sale Price (£)",
+                yaxis_title="Number of Sales",
+                title="<b>Distribution of House Sale Prices — Bristol (2021–2025)</b>",
+                plot_bgcolor="white",
+                height=450,
+                showlegend=False,
+            )
             fig.update_xaxes(tickformat="£,.0f")
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            show_data_warning()
 
+            # Storytelling insight
+            st.info(
+                f"💡 **Why this matters for modelling:** The mean (£{avg:,.0f}) "
+                f"sits £{avg-med:,.0f} above the median (£{med:,.0f}), "
+                f"confirming a right-skewed distribution (skew = {skew:.2f}). "
+                f"This means a small number of high-value properties pull the "
+                f"average upward. **We apply a log transformation** to median "
+                f"price before regression — this compresses the right tail, "
+                f"stabilises variance, and produces a more linear relationship "
+                f"with the predictors."
+            )
+        else:
+            st.warning("⚠️ house_prices_bristol_clean.csv/zip not found in data/")
+
+    # ── Tab 2 — Crime trends ───────────────────────────────────────────────────
     with tab2:
-        st.markdown("#### Crime trends by type (2021–2025)")
-        st.markdown(
-            "Violence and sexual offences dominates throughout. "
-            "Total crime remains broadly stable (~31–33k per year).")
+        st.markdown("### How has crime changed across Bristol (2021–2025)?")
+        st.markdown("""
+        We use Police.uk data covering **159,666 crime records** across
+        all Bristol LSOAs. Understanding crime composition and stability
+        over time justifies our use of a single aggregated crime count
+        per LSOA in the regression models.
+        """)
+
         if crime_df is not None:
+            # Summary metrics
+            total_crimes = len(crime_df)
+            avg_annual   = crime_df.groupby("year").size().mean()
+            top_type     = crime_df["Crime type"].value_counts().index[0]
+            top_pct      = (crime_df["Crime type"].value_counts().iloc[0]
+                           / total_crimes * 100)
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total records",    f"{total_crimes:,}")
+            m2.metric("Avg per year",     f"{avg_annual:,.0f}")
+            m3.metric("Dominant type",    "Violence & sexual")
+            m4.metric("% of all crimes",  f"{top_pct:.1f}%")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
             crime_pivot  = crime_df.pivot_table(
                 index="year", columns="Crime type",
                 aggfunc="size", fill_value=0)
             crime_totals = crime_df.groupby("year").size()
             top_types    = crime_df["Crime type"].value_counts().head(5).index
-            colours      = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b2"]
+            colours      = ["#4c72b0", "#dd8452",
+                            "#55a868", "#c44e52", "#8172b2"]
 
             fig = go.Figure()
             for ct, colour in zip(top_types, colours):
                 if ct in crime_pivot.columns:
                     fig.add_trace(go.Scatter(
-                        x=crime_pivot.index, y=crime_pivot[ct],
-                        mode="lines+markers", name=ct,
-                        line=dict(color=colour, width=2),
-                        marker=dict(size=6)))
-            fig.add_trace(go.Scatter(
-                x=crime_totals.index, y=crime_totals.values,
-                mode="lines+markers", name="Total (all types)",
-                line=dict(color="black", width=2.5, dash="dash"),
-                marker=dict(symbol="square", size=7)))
-            fig.update_layout(
-                xaxis_title="Year", yaxis_title="Recorded Crimes",
-                title="Crime Trends by Type — Bristol (2021–2025)",
-                plot_bgcolor="white", height=400,
-                xaxis=dict(tickmode="linear", tick0=2021, dtick=1),
-                legend=dict(x=1.02, y=1))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            show_data_warning()
+                        x=crime_pivot.index,
+                        y=crime_pivot[ct],
+                        mode="lines+markers",
+                        name=ct,
+                        line=dict(color=colour, width=2.5),
+                        marker=dict(size=7),
+                        hovertemplate=(
+                            f"<b>{ct}</b><br>"
+                            "Year: %{x}<br>"
+                            "Count: %{y:,}<extra></extra>"),
+                    ))
 
+            fig.add_trace(go.Scatter(
+                x=crime_totals.index,
+                y=crime_totals.values,
+                mode="lines+markers",
+                name="Total (all types)",
+                line=dict(color="black", width=3, dash="dash"),
+                marker=dict(symbol="square", size=8),
+                hovertemplate=(
+                    "<b>Total crimes</b><br>"
+                    "Year: %{x}<br>"
+                    "Count: %{y:,}<extra></extra>"),
+            ))
+
+            # Annotation for dominant category
+            last_year = crime_pivot.index[-1]
+            if "Violence and sexual offences" in crime_pivot.columns:
+                last_val = crime_pivot.loc[
+                    last_year, "Violence and sexual offences"]
+                fig.add_annotation(
+                    x=last_year, y=last_val,
+                    text=f"<b>Violence: {last_val:,}</b><br>~1/3 of all crime",
+                    showarrow=True, arrowhead=2,
+                    ax=-80, ay=-30,
+                    font=dict(size=11, color="#4c72b0"),
+                    bgcolor="white",
+                    bordercolor="#4c72b0", borderwidth=1)
+
+            fig.update_layout(
+                xaxis_title="Year",
+                yaxis_title="Recorded Crimes",
+                title="<b>Crime Trends by Type — Bristol (2021–2025)</b>",
+                plot_bgcolor="white",
+                height=450,
+                xaxis=dict(tickmode="linear", tick0=2021, dtick=1),
+                legend=dict(
+                    x=1.02, y=1,
+                    bgcolor="rgba(255,255,255,0.9)",
+                    bordercolor="#cccccc", borderwidth=1),
+                yaxis=dict(tickformat=","),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.info(
+                "💡 **Why this matters for modelling:** Total crime is broadly "
+                "stable across 2021–2025 (~31,000–33,000 incidents per year), "
+                "with only a slight dip in 2023. This stability supports "
+                "aggregating crime across the full study period into a single "
+                "**total_crimes** count per LSOA, rather than modelling "
+                "year-by-year changes. Violence and sexual offences consistently "
+                "accounts for around one third of all crime — making it the "
+                "dominant driver of neighbourhood crime levels across Bristol."
+            )
+        else:
+            st.warning("⚠️ crime_bristol_clean.csv/zip not found in data/")
+
+    # ── Tab 3 — Spatial maps ───────────────────────────────────────────────────
     with tab3:
-        st.markdown("#### Price and crime — spatial patterns")
-        st.markdown(
-            "Comparing both maps reveals where the two variables **diverge** — "
-            "high-crime, high-price areas near the city centre are the key anomaly "
-            "that motivates GWR.")
+        st.markdown("### Where are prices high — and where is crime high?")
+        st.markdown("""
+        The two maps below show the spatial distribution of **median house
+        price** (left) and **total crime count** (right) across all 182
+        Bristol LSOAs. The key question: do high-crime areas always have
+        low prices — or is the relationship more complex?
+        """)
+
         if DATA_AVAILABLE:
             col1, col2 = st.columns(2)
+
             with col1:
                 st.plotly_chart(make_choropleth(
                     geojson=geojson,
@@ -365,6 +495,11 @@ elif page == "📊  Exploratory Analysis":
                         "<b>%{location}</b><br>"
                         "Median price: £%{z:,.0f}<extra></extra>"),
                 ), use_container_width=True)
+                st.caption(
+                    "🔵 **Highest prices** in the north and north-west "
+                    "(Clifton, Redland, Cotham). Prices fall moving south "
+                    "and east toward more peripheral neighbourhoods.")
+
             with col2:
                 st.plotly_chart(make_choropleth(
                     geojson=geojson,
@@ -377,8 +512,37 @@ elif page == "📊  Exploratory Analysis":
                         "<b>%{location}</b><br>"
                         "Total crimes: %{z:,.0f}<extra></extra>"),
                 ), use_container_width=True)
+                st.caption(
+                    "🔴 **Highest crime** concentrated in the city centre "
+                    "and inner-city LSOAs. Outer and northern residential "
+                    "areas show markedly lower crime counts.")
+
+            st.warning(
+                "⚠️ **The spatial paradox:** Some city-centre LSOAs appear "
+                "**dark on both maps** — high crime AND high prices. This "
+                "directly contradicts a simple negative relationship and "
+                "suggests that **location advantages** (centrality, schools, "
+                "transport) can override the negative price effect of crime "
+                "in specific neighbourhoods. A global OLS model cannot capture "
+                "this — it forces a single average effect across all 182 LSOAs. "
+                "**This is why we need GWR.**"
+            )
+
+            # Quick stats
+            st.markdown("#### At a glance")
+            g1, g2, g3, g4 = st.columns(4)
+            g1.metric("Price range",
+                      f"£{reg_df['median_price'].min():,.0f}–"
+                      f"£{reg_df['median_price'].max():,.0f}")
+            g2.metric("Crime range",
+                      f"{reg_df['total_crimes'].min():.0f}–"
+                      f"{reg_df['total_crimes'].max():,.0f}")
+            g3.metric("Correlation (r)",  "−0.23")
+            g4.metric("Significant?",     "Yes (p < 0.05)")
         else:
-            show_data_warning()
+            st.warning(
+                "⚠️ regression_dataset.geojson not found in data/. "
+                "Upload it from Google Drive to enable the maps.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — OLS BASELINE
