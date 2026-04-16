@@ -1144,16 +1144,16 @@ elif page == "🔍  Key Findings":
         'Bristol\'s housing market — and why it matters</div>',
         unsafe_allow_html=True)
 
-    st.markdown(
-        "This project set out to answer one question: "
-        "**Does crime affect house prices in Bristol — and does this "
-        "relationship vary spatially across neighbourhoods?** "
-        "The answer is yes — but with important nuance that only GWR can reveal."
-    )
+    st.markdown("""
+    This project set out to answer one question:
+    **Does crime affect house prices in Bristol — and does this relationship
+    vary spatially across neighbourhoods?**
+    The answer is yes — but with important nuance that only GWR can reveal.
+    """)
 
     st.markdown("---")
 
-    # ── Story in numbers ───────────────────────────────────────────────────────
+    # ── The story in numbers ───────────────────────────────────────────────────
     st.markdown("### The story in numbers")
 
     s1, s2, s3, s4, s5 = st.columns(5)
@@ -1190,211 +1190,158 @@ elif page == "🔍  Key Findings":
     st.markdown("### Five key findings")
 
     # Finding 1
-    with st.expander(
-        "✅ Finding 1 — Crime and prices ARE negatively correlated",
-        expanded=True
-    ):
+    with st.expander("✅ Finding 1 — Crime and prices ARE negatively correlated", expanded=True):
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            st.markdown(
-                "Both Pearson and Spearman correlation tests return "
-                "**r = −0.23** (p < 0.05) between log total crimes and "
-                "log median house price across Bristol's 182 LSOAs."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                "An independent samples t-test confirms that **high-crime "
-                "LSOAs have statistically significantly lower median prices** "
-                "than low-crime areas — approximately 7–10% cheaper on average."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.info(
-                "💡 **What this means:** The negative relationship is real "
-                "and statistically robust. It is not driven by outliers — "
-                "the Spearman (rank-based) result matches Pearson exactly. "
-                "Crime genuinely signals lower prices at the neighbourhood level."
-            )
+            st.markdown("""
+            Both Pearson and Spearman correlation tests return **r = −0.23**
+            (p < 0.05) between log total crimes and log median house price
+            across Bristol's 182 LSOAs.
+
+            An independent samples t-test confirms that **high-crime LSOAs
+            have statistically significantly lower median prices** than
+            low-crime areas — approximately 7–10% cheaper on average.
+
+            **What this means:** The negative relationship is real and
+            statistically robust. It is not driven by outliers — the
+            Spearman (rank-based) result matches Pearson exactly.
+            """)
         with col2:
             st.metric("Pearson r",  "−0.23", "p < 0.05")
-            st.markdown("<br>", unsafe_allow_html=True)
             st.metric("Spearman ρ", "−0.23", "p < 0.05")
-            st.markdown("<br>", unsafe_allow_html=True)
             st.metric("Price gap",  "~7–10%",
                       "high vs low crime areas",
                       delta_color="inverse")
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # Finding 2
     with st.expander("✅ Finding 2 — A global model is insufficient"):
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            st.markdown(
-                "The global OLS model explains only **10.8%** of price "
-                "variation (R² = 0.108)."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                "More critically, Moran's I applied to the OLS residuals "
-                "returns **I = 0.4775 (p = 0.001)** — confirming strong "
-                "positive spatial autocorrelation. This means neighbouring "
-                "LSOAs have systematically similar prediction errors. The "
-                "global model consistently under-predicts in the north-west "
-                "and over-predicts in the south — a clear spatial pattern "
-                "that OLS cannot capture."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.error(
-                "🔴 **What this means:** The assumption that crime affects "
-                "prices equally everywhere in Bristol is wrong. The OLS "
-                "independence assumption is violated. A spatially varying "
-                "model is statistically necessary."
-            )
+            st.markdown("""
+            The global OLS model explains only **10.8%** of price variation
+            (R² = 0.108). More critically, Moran's I applied to the OLS
+            residuals returns **I = 0.4775 (p = 0.001)** — confirming
+            strong positive spatial autocorrelation.
+
+            This means neighbouring LSOAs have **systematically similar
+            prediction errors**. The global model consistently under-predicts
+            in the north-west and over-predicts in the south — a clear
+            spatial pattern that OLS cannot capture.
+
+            **What this means:** The assumption that crime affects prices
+            equally everywhere in Bristol is wrong. A spatially varying
+            model is needed.
+            """)
         with col2:
-            st.metric("OLS R²", "0.108", "Only 10.8% explained")
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.metric("OLS R²",    "0.108",  "Only 10.8% explained")
             st.metric("Moran's I", "0.4775", "p = 0.001",
                       delta_color="inverse")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("Verdict", "❌ OLS fails",
+            st.metric("Verdict",   "❌ OLS fails",
                       "independence assumption violated",
                       delta_color="off")
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # Finding 3
     with st.expander("✅ Finding 3 — GWR substantially outperforms OLS"):
         col1, col2 = st.columns([1.5, 1])
-        gwr_r2  = stats.get("gwr_r2",   0.7155)
-        ols_r2  = stats.get("ols_r2",   0.1084)
-        gwr_aic = stats.get("gwr_aicc", -199.38)
-        ols_aic = stats.get("ols_aicc",  -84.17)
         with col1:
-            st.markdown(
-                f"Using the same 5 predictors, GWR achieves **R² = "
-                f"{gwr_r2:.3f}** compared to {ols_r2:.3f} for OLS — "
-                f"an improvement of **+{gwr_r2 - ols_r2:.3f}**."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                f"The AICc improves by **{abs(gwr_aic - ols_aic):.0f} "
-                f"points** (from {ols_aic:.1f} to {gwr_aic:.1f}). "
-                f"In model selection, a difference greater than 10 points "
-                f"is considered strong evidence in favour of the lower-AICc "
-                f"model (Burnham & Anderson, 2002). A difference of "
-                f"{abs(gwr_aic - ols_aic):.0f} points is overwhelming."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.success(
-                "✅ **What this means:** The dramatic improvement comes "
-                "entirely from allowing coefficients to vary spatially. "
-                "Bristol's housing market cannot be adequately characterised "
-                "by any single global model."
-            )
-        with col2:
-            st.metric("GWR R²", f"{gwr_r2:.3f}",
-                      f"+{gwr_r2 - ols_r2:.3f} vs OLS")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("AICc improvement",
-                      f"{abs(gwr_aic - ols_aic):.0f} points",
-                      "Overwhelming evidence")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("Verdict", "✅ GWR wins",
-                      "on all 3 metrics", delta_color="off")
+            gwr_r2 = stats.get("gwr_r2", 0.7155)
+            ols_r2 = stats.get("ols_r2", 0.1084)
+            gwr_aic = stats.get("gwr_aicc", -199.38)
+            ols_aic = stats.get("ols_aicc", -84.17)
+            st.markdown(f"""
+            Using the same 5 predictors, GWR achieves **R² = {gwr_r2:.3f}**
+            compared to {ols_r2:.3f} for OLS — an improvement of
+            **+{(gwr_r2-ols_r2):.3f}**.
 
-    st.markdown("<br>", unsafe_allow_html=True)
+            The AICc improves by **{abs(gwr_aic-ols_aic):.0f} points**
+            (from {ols_aic:.1f} to {gwr_aic:.1f}). In model selection,
+            a difference greater than 10 points is considered strong
+            evidence in favour of the lower-AICc model — a difference
+            of {abs(gwr_aic-ols_aic):.0f} points is overwhelming.
+
+            **What this means:** The dramatic improvement comes entirely
+            from allowing coefficients to vary spatially. Bristol's housing
+            market cannot be adequately characterised by any single
+            global model.
+            """)
+        with col2:
+            st.metric("GWR R²",
+                      f"{gwr_r2:.3f}",
+                      f"+{gwr_r2-ols_r2:.3f} vs OLS")
+            st.metric("AICc improvement",
+                      f"{abs(gwr_aic-ols_aic):.0f} points",
+                      "Overwhelming evidence")
+            st.metric("Verdict", "✅ GWR wins",
+                      "on all 3 metrics",
+                      delta_color="off")
 
     # Finding 4
-    with st.expander(
-        "✅ Finding 4 — The crime effect varies dramatically across space"
-    ):
+    with st.expander("✅ Finding 4 — The crime effect varies dramatically across space"):
         col1, col2 = st.columns([1.5, 1])
-        gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
-        gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
         with col1:
-            st.markdown(
-                f"The local GWR crime coefficient ranges from "
-                f"**{gwr_min:.4f} to +{gwr_max:.4f}** across Bristol's "
-                f"182 LSOAs."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                "Converting to percentage terms:"
-            )
-            st.markdown(
-                f"- **Strongest effect:** "
-                f"{(np.exp(gwr_min) - 1) * 100:.1f}% price decrease per "
-                f"log crime unit — outer and south-eastern Bristol\n"
-                f"- **Global OLS:** "
-                f"{(np.exp(-0.0778) - 1) * 100:.1f}% (city-wide average)\n"
-                f"- **Weakest effect:** "
-                f"+{(np.exp(gwr_max) - 1) * 100:.1f}% — near-zero, "
-                f"city-centre LSOAs"
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.warning(
-                "⚠️ **What this means:** The strongest local effect is "
-                "nearly 3× larger than the global OLS estimate — OLS "
-                "systematically under-estimates crime's impact in peripheral "
-                "neighbourhoods and over-estimates it in central ones. "
-                "Any policy using a single city-wide estimate will be "
-                "wrong for most neighbourhoods."
-            )
+            gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
+            gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
+            st.markdown(f"""
+            The local GWR crime coefficient ranges from **{gwr_min:.4f}
+            to +{gwr_max:.4f}** across Bristol's 182 LSOAs.
+
+            Converting to percentage terms:
+            - **Strongest effect:** {(np.exp(gwr_min)-1)*100:.1f}% price
+              decrease per log crime unit (outer/south-east Bristol)
+            - **Global OLS:** {(np.exp(-0.0778)-1)*100:.1f}% (city-wide average)
+            - **Weakest effect:** +{(np.exp(gwr_max)-1)*100:.1f}% (near-zero,
+              city-centre LSOAs)
+
+            The strongest local effect is nearly **3× larger** than the
+            global OLS estimate — meaning OLS systematically under-estimates
+            crime's impact in peripheral neighbourhoods and over-estimates
+            it in central ones.
+
+            **What this means:** Any policy using a single city-wide estimate
+            will be wrong for most neighbourhoods.
+            """)
         with col2:
-            st.metric("Min coefficient", f"{gwr_min:.4f}",
-                      f"≈ {(np.exp(gwr_min) - 1) * 100:.1f}% effect",
+            st.metric("Min coefficient",
+                      f"{gwr_min:.4f}",
+                      f"≈ {(np.exp(gwr_min)-1)*100:.1f}% effect",
                       delta_color="inverse")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("OLS estimate", "−0.0778",
+            st.metric("OLS estimate",
+                      "−0.0778",
                       "≈ −7.5% (global average)",
                       delta_color="inverse")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("Max coefficient", f"+{gwr_max:.4f}",
-                      f"≈ +{(np.exp(gwr_max) - 1) * 100:.1f}% effect")
-
-    st.markdown("<br>", unsafe_allow_html=True)
+            st.metric("Max coefficient",
+                      f"+{gwr_max:.4f}",
+                      f"≈ +{(np.exp(gwr_max)-1)*100:.1f}% effect")
 
     # Finding 5
-    with st.expander(
-        "✅ Finding 5 — Amenities explain the spatial paradox"
-    ):
+    with st.expander("✅ Finding 5 — Amenities explain the spatial paradox"):
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            st.markdown(
-                "A small number of LSOAs show **high crime AND high prices** "
-                "simultaneously — apparently defying the overall negative "
-                "relationship."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("These hotspot LSOAs have:")
-            st.markdown(
-                "- **74% more schools** per LSOA (1.20 vs 0.69)\n"
-                "- **Slightly better bus access** (0.162 vs 0.182 km "
-                "to nearest stop)\n"
-                "- **Marginally more central** location "
-                "(3.151 vs 3.217 km from city centre)"
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                "Strong educational provision in particular appears to "
-                "sustain housing demand even in high-crime areas. "
-                "Parents and families appear willing to accept higher "
-                "local crime in exchange for access to more schools."
-            )
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.info(
-                "💡 **What this means:** Crime reduction is most effective "
-                "at raising prices in peripheral, amenity-poor areas. In "
-                "central areas, investing in schools and transport may be "
-                "a more powerful lever than crime reduction alone."
-            )
+            st.markdown("""
+            A small number of LSOAs show **high crime AND high prices**
+            simultaneously — apparently defying the overall negative
+            relationship. These hotspot LSOAs have:
+
+            - **74% more schools** per LSOA (1.20 vs 0.69)
+            - **Slightly better bus access** (0.162 vs 0.182 km)
+            - **Marginally more central** location (3.151 vs 3.217 km)
+
+            Strong educational provision in particular appears to sustain
+            housing demand even in high-crime areas. Parents and families
+            appear willing to accept higher local crime in exchange for
+            access to more schools.
+
+            **What this means:** Crime reduction is most effective at
+            raising prices in peripheral, amenity-poor areas. In central
+            areas, investing in schools and transport may be a more
+            powerful lever than crime reduction alone.
+            """)
         with col2:
-            st.metric("Schools — hotspots", "1.20 per LSOA")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("Schools — others", "0.69 per LSOA",
-                      "−42% fewer", delta_color="inverse")
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.metric("School density gap", "+74%",
+            st.metric("Schools — hotspots",  "1.20 per LSOA")
+            st.metric("Schools — others",    "0.69 per LSOA",
+                      "−42% fewer",
+                      delta_color="inverse")
+            st.metric("School density gap",  "+74%",
                       "in high-crime, high-price areas")
 
     st.markdown("---")
@@ -1407,48 +1354,36 @@ elif page == "🔍  Key Findings":
     with p1:
         st.markdown("""
         **🏘️ Peripheral neighbourhoods**
+
+        Crime reduction will have the **largest positive effect on house
+        prices** in outer and south-eastern Bristol — LSOAs with strong
+        negative GWR coefficients and limited amenity provision.
+
+        Targeted policing and community safety investment in these areas
+        is likely to deliver measurable property value uplift.
         """)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "Crime reduction will have the **largest positive effect on "
-            "house prices** in outer and south-eastern Bristol — LSOAs "
-            "with strong negative GWR coefficients and limited amenity "
-            "provision."
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "Targeted policing and community safety investment in these "
-            "areas is likely to deliver measurable property value uplift."
-        )
 
     with p2:
         st.markdown("""
         **🏙️ City-centre neighbourhoods**
+
+        In central, well-served areas where the GWR coefficient is near
+        zero, **investment in schools and transport** may be a more
+        effective lever for sustaining property values than crime
+        reduction alone.
+
+        Amenity provision sustains demand even where crime is elevated.
         """)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "In central, well-served areas where the GWR coefficient is "
-            "near zero, **investment in schools and transport** may be a "
-            "more effective lever for sustaining property values than "
-            "crime reduction alone."
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "Amenity provision sustains demand even where crime is elevated."
-        )
 
     with p3:
         st.markdown("""
         **📊 Evidence-based planning**
+
+        A single city-wide crime statistic hides fundamentally different
+        local dynamics. **Spatially differentiated policy** — using
+        neighbourhood-level GWR coefficients to prioritise interventions
+        — is both empirically justified and practically necessary.
         """)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "A single city-wide crime statistic hides fundamentally "
-            "different local dynamics. **Spatially differentiated policy** "
-            "— using neighbourhood-level GWR coefficients to prioritise "
-            "interventions — is both empirically justified and practically "
-            "necessary."
-        )
 
     st.markdown("---")
 
@@ -1458,9 +1393,9 @@ elif page == "🔍  Key Findings":
     with col_lim:
         st.markdown("### Limitations")
         for lim in [
-            "Cross-sectional — cannot establish causality",
+            "Cross-sectional analysis — cannot establish causality",
             "Total crime aggregates all offence types equally",
-            "Omitted variables: deprivation, property size, age",
+            "Omitted variables: deprivation, property size, age, condition",
             "GWR sensitive to bandwidth choice",
             "Local estimates less stable than global OLS",
         ]:
@@ -1470,10 +1405,10 @@ elif page == "🔍  Key Findings":
         st.markdown("### Future work")
         for fut in [
             "Add IMD deprivation scores to reduce omitted variable bias",
-            "Disaggregate by crime type (violent, burglary, ASB)",
-            "Panel methods to track annual crime-price changes",
+            "Disaggregate by individual crime types (violent, burglary, ASB)",
+            "Panel methods to track annual crime-price changes 2021–2025",
             "Replicate in other UK cities to test generalisability",
-            "Causal inference via instrumental variables",
+            "Causal inference via instrumental variables or diff-in-diff",
         ]:
             st.markdown(f"- {fut}")
 
@@ -1481,32 +1416,28 @@ elif page == "🔍  Key Findings":
 
     # ── Resources ──────────────────────────────────────────────────────────────
     st.markdown("### Resources")
-
     r1, r2, r3 = st.columns(3)
     with r1:
-        st.markdown("**📂 Code & data**")
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "- [GitHub Repository](https://github.com/layaung-linnlett/"
-            "bristol-crime-houseprices-gwr)\n"
-            "- Full reproducible notebook\n"
-            "- Reusable src/ modules"
-        )
+        st.markdown("""
+        **📂 Code & data**
+        - [GitHub Repository](https://github.com/layaung-linnlett/bristol-crime-houseprices-gwr)
+        - Full notebook with reproducible pipeline
+        - src/ modules for reuse
+        """)
     with r2:
-        st.markdown("**📊 Data sources**")
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "- [HM Land Registry](https://www.gov.uk/government/"
-            "statistical-data-sets/price-paid-data-downloads)\n"
-            "- [Police.uk](https://data.police.uk/data/)\n"
-            "- [ONS Geoportal](https://geoportal.statistics.gov.uk/)"
-        )
+        st.markdown("""
+        **📊 Data sources**
+        - [HM Land Registry](https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads)
+        - [Police.uk](https://data.police.uk/data/)
+        - [ONS Geoportal](https://geoportal.statistics.gov.uk/)
+        """)
     with r3:
-        st.markdown("**👤 Author**")
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(
-            "La Yaung Linn Lett\n\n"
-            "BSc Data Science & AI\n\n"
-            "UWE Bristol, 2026"
-        )
+        st.markdown("""
+        **👤 Author**
+
+        La Yaung Linn Lett
+
+        BSc Data Science & AI
+
+        UWE Bristol, 2026
         """)
