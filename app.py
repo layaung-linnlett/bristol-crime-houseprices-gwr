@@ -1140,91 +1140,304 @@ elif page == "🔍  Key Findings":
         '<div class="main-header">Key Findings</div>',
         unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">What the analysis reveals about Bristol\'s '
-        'housing market</div>',
+        '<div class="sub-header">What the analysis reveals about '
+        'Bristol\'s housing market — and why it matters</div>',
         unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="finding-box">✅ <b>Finding 1 — Significant negative correlation.</b>
-    Crime and house prices are significantly negatively correlated across Bristol
-    LSOAs (Pearson r = −0.23, p &lt; 0.05). High-crime neighbourhoods have
-    statistically significantly lower median prices than low-crime areas.</div>
-
-    <div class="finding-box">✅ <b>Finding 2 — Global OLS is insufficient.</b>
-    OLS explains only 10.8% of price variation. Moran's I = 0.4775 (p = 0.001)
-    confirms strong spatial autocorrelation in residuals — violating the OLS
-    independence assumption. A spatially varying model is needed.</div>
-
-    <div class="finding-box">✅ <b>Finding 3 — GWR substantially outperforms OLS.</b>
-    R² improves from 0.108 to 0.716 (+0.607) using the same 5 predictors.
-    AICc improves by 115 points. The improvement comes entirely from allowing
-    coefficients to vary spatially.</div>
-
-    <div class="finding-box">✅ <b>Finding 4 — Strong spatial heterogeneity.</b>
-    The local crime coefficient ranges from −0.244 to +0.020 — more than 3× the
-    global OLS estimate of −0.078. 79% of LSOAs show a meaningfully negative
-    effect; ~21% near the city centre show near-zero or positive effects.</div>
-
-    <div class="finding-box">✅ <b>Finding 5 — Amenities offset crime.</b>
-    High-crime, high-price hotspot LSOAs have nearly double the school density
-    (1.20 vs 0.69 per LSOA) and better transport access — explaining why crime
-    does not suppress prices in those areas.</div>
-    """, unsafe_allow_html=True)
+    This project set out to answer one question:
+    **Does crime affect house prices in Bristol — and does this relationship
+    vary spatially across neighbourhoods?**
+    The answer is yes — but with important nuance that only GWR can reveal.
+    """)
 
     st.markdown("---")
-    col1, col2 = st.columns(2)
 
-    with col1:
-        st.markdown("### Summary comparison")
-        st.dataframe(pd.DataFrame({
-            "Metric":      ["R²", "Adjusted R²", "AICc", "Crime coefficient"],
-            "OLS":         ["0.108", "0.083", "−84.17", "−0.078 (global)"],
-            "GWR":         ["0.716", "0.636", "−199.38",
-                            "−0.244 to +0.020 (local)"],
-            "GWR better?": ["✓", "✓", "✓ (lower)", "✓ (richer)"],
-        }), use_container_width=True, hide_index=True)
+    # ── The story in numbers ───────────────────────────────────────────────────
+    st.markdown("### The story in numbers")
 
-        st.markdown("### Hotspot amenities")
-        st.dataframe(pd.DataFrame({
-            "Indicator":     ["Dist. to centre (km)",
-                              "Schools per LSOA",
-                              "Dist. to bus (km)"],
-            "Hotspot LSOAs": ["3.151", "1.20", "0.162"],
-            "Other LSOAs":   ["3.217", "0.69", "0.182"],
-            "Difference":    ["−0.066", "+0.51 ✓", "−0.020"],
-        }), use_container_width=True, hide_index=True)
-        st.caption(
-            "Hotspots = LSOAs in upper quartile for BOTH crime AND price")
+    s1, s2, s3, s4, s5 = st.columns(5)
+    s1.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">−0.23</div>
+        <div class="metric-label">Pearson r<br>crime vs price<br>(p &lt; 0.05)</div>
+    </div>""", unsafe_allow_html=True)
+    s2.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">10.8%</div>
+        <div class="metric-label">Variance explained<br>by global OLS<br>(insufficient)</div>
+    </div>""", unsafe_allow_html=True)
+    s3.markdown("""
+    <div class="metric-card">
+        <div class="metric-value" style="color:#2e7d32">71.6%</div>
+        <div class="metric-label">Variance explained<br>by GWR<br>(same predictors)</div>
+    </div>""", unsafe_allow_html=True)
+    s4.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">3×</div>
+        <div class="metric-label">Range of local effect<br>vs OLS global<br>estimate</div>
+    </div>""", unsafe_allow_html=True)
+    s5.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">79%</div>
+        <div class="metric-label">LSOAs with<br>meaningful negative<br>crime effect</div>
+    </div>""", unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("### Policy implications")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # ── Five findings ──────────────────────────────────────────────────────────
+    st.markdown("### Five key findings")
+
+    # Finding 1
+    with st.expander("✅ Finding 1 — Crime and prices ARE negatively correlated", expanded=True):
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
+            st.markdown("""
+            Both Pearson and Spearman correlation tests return **r = −0.23**
+            (p < 0.05) between log total crimes and log median house price
+            across Bristol's 182 LSOAs.
+
+            An independent samples t-test confirms that **high-crime LSOAs
+            have statistically significantly lower median prices** than
+            low-crime areas — approximately 7–10% cheaper on average.
+
+            **What this means:** The negative relationship is real and
+            statistically robust. It is not driven by outliers — the
+            Spearman (rank-based) result matches Pearson exactly.
+            """)
+        with col2:
+            st.metric("Pearson r",  "−0.23", "p < 0.05")
+            st.metric("Spearman ρ", "−0.23", "p < 0.05")
+            st.metric("Price gap",  "~7–10%",
+                      "high vs low crime areas",
+                      delta_color="inverse")
+
+    # Finding 2
+    with st.expander("✅ Finding 2 — A global model is insufficient"):
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
+            st.markdown("""
+            The global OLS model explains only **10.8%** of price variation
+            (R² = 0.108). More critically, Moran's I applied to the OLS
+            residuals returns **I = 0.4775 (p = 0.001)** — confirming
+            strong positive spatial autocorrelation.
+
+            This means neighbouring LSOAs have **systematically similar
+            prediction errors**. The global model consistently under-predicts
+            in the north-west and over-predicts in the south — a clear
+            spatial pattern that OLS cannot capture.
+
+            **What this means:** The assumption that crime affects prices
+            equally everywhere in Bristol is wrong. A spatially varying
+            model is needed.
+            """)
+        with col2:
+            st.metric("OLS R²",    "0.108",  "Only 10.8% explained")
+            st.metric("Moran's I", "0.4775", "p = 0.001",
+                      delta_color="inverse")
+            st.metric("Verdict",   "❌ OLS fails",
+                      "independence assumption violated",
+                      delta_color="off")
+
+    # Finding 3
+    with st.expander("✅ Finding 3 — GWR substantially outperforms OLS"):
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
+            gwr_r2 = stats.get("gwr_r2", 0.7155)
+            ols_r2 = stats.get("ols_r2", 0.1084)
+            gwr_aic = stats.get("gwr_aicc", -199.38)
+            ols_aic = stats.get("ols_aicc", -84.17)
+            st.markdown(f"""
+            Using the same 5 predictors, GWR achieves **R² = {gwr_r2:.3f}**
+            compared to {ols_r2:.3f} for OLS — an improvement of
+            **+{(gwr_r2-ols_r2):.3f}**.
+
+            The AICc improves by **{abs(gwr_aic-ols_aic):.0f} points**
+            (from {ols_aic:.1f} to {gwr_aic:.1f}). In model selection,
+            a difference greater than 10 points is considered strong
+            evidence in favour of the lower-AICc model — a difference
+            of {abs(gwr_aic-ols_aic):.0f} points is overwhelming.
+
+            **What this means:** The dramatic improvement comes entirely
+            from allowing coefficients to vary spatially. Bristol's housing
+            market cannot be adequately characterised by any single
+            global model.
+            """)
+        with col2:
+            st.metric("GWR R²",
+                      f"{gwr_r2:.3f}",
+                      f"+{gwr_r2-ols_r2:.3f} vs OLS")
+            st.metric("AICc improvement",
+                      f"{abs(gwr_aic-ols_aic):.0f} points",
+                      "Overwhelming evidence")
+            st.metric("Verdict", "✅ GWR wins",
+                      "on all 3 metrics",
+                      delta_color="off")
+
+    # Finding 4
+    with st.expander("✅ Finding 4 — The crime effect varies dramatically across space"):
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
+            gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
+            gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
+            st.markdown(f"""
+            The local GWR crime coefficient ranges from **{gwr_min:.4f}
+            to +{gwr_max:.4f}** across Bristol's 182 LSOAs.
+
+            Converting to percentage terms:
+            - **Strongest effect:** {(np.exp(gwr_min)-1)*100:.1f}% price
+              decrease per log crime unit (outer/south-east Bristol)
+            - **Global OLS:** {(np.exp(-0.0778)-1)*100:.1f}% (city-wide average)
+            - **Weakest effect:** +{(np.exp(gwr_max)-1)*100:.1f}% (near-zero,
+              city-centre LSOAs)
+
+            The strongest local effect is nearly **3× larger** than the
+            global OLS estimate — meaning OLS systematically under-estimates
+            crime's impact in peripheral neighbourhoods and over-estimates
+            it in central ones.
+
+            **What this means:** Any policy using a single city-wide estimate
+            will be wrong for most neighbourhoods.
+            """)
+        with col2:
+            st.metric("Min coefficient",
+                      f"{gwr_min:.4f}",
+                      f"≈ {(np.exp(gwr_min)-1)*100:.1f}% effect",
+                      delta_color="inverse")
+            st.metric("OLS estimate",
+                      "−0.0778",
+                      "≈ −7.5% (global average)",
+                      delta_color="inverse")
+            st.metric("Max coefficient",
+                      f"+{gwr_max:.4f}",
+                      f"≈ +{(np.exp(gwr_max)-1)*100:.1f}% effect")
+
+    # Finding 5
+    with st.expander("✅ Finding 5 — Amenities explain the spatial paradox"):
+        col1, col2 = st.columns([1.5, 1])
+        with col1:
+            st.markdown("""
+            A small number of LSOAs show **high crime AND high prices**
+            simultaneously — apparently defying the overall negative
+            relationship. These hotspot LSOAs have:
+
+            - **74% more schools** per LSOA (1.20 vs 0.69)
+            - **Slightly better bus access** (0.162 vs 0.182 km)
+            - **Marginally more central** location (3.151 vs 3.217 km)
+
+            Strong educational provision in particular appears to sustain
+            housing demand even in high-crime areas. Parents and families
+            appear willing to accept higher local crime in exchange for
+            access to more schools.
+
+            **What this means:** Crime reduction is most effective at
+            raising prices in peripheral, amenity-poor areas. In central
+            areas, investing in schools and transport may be a more
+            powerful lever than crime reduction alone.
+            """)
+        with col2:
+            st.metric("Schools — hotspots",  "1.20 per LSOA")
+            st.metric("Schools — others",    "0.69 per LSOA",
+                      "−42% fewer",
+                      delta_color="inverse")
+            st.metric("School density gap",  "+74%",
+                      "in high-crime, high-price areas")
+
+    st.markdown("---")
+
+    # ── Policy implications ────────────────────────────────────────────────────
+    st.markdown("### Policy implications")
+
+    p1, p2, p3 = st.columns(3)
+
+    with p1:
         st.markdown("""
-        **For policymakers and urban planners:**
+        **🏘️ Peripheral neighbourhoods**
 
-        Crime reduction will have the **largest positive effect on house prices
-        in peripheral, amenity-poor neighbourhoods** — those showing the
-        strongest negative GWR coefficients (dark red on the map).
+        Crime reduction will have the **largest positive effect on house
+        prices** in outer and south-eastern Bristol — LSOAs with strong
+        negative GWR coefficients and limited amenity provision.
 
-        In **central, well-served areas** where the GWR coefficient is near
-        zero, investment in schools, transport, and local services may be a
-        more effective lever than crime reduction alone.
-
-        A **spatially differentiated** policy approach is both empirically
-        justified and practically necessary.
+        Targeted policing and community safety investment in these areas
+        is likely to deliver measurable property value uplift.
         """)
 
+    with p2:
+        st.markdown("""
+        **🏙️ City-centre neighbourhoods**
+
+        In central, well-served areas where the GWR coefficient is near
+        zero, **investment in schools and transport** may be a more
+        effective lever for sustaining property values than crime
+        reduction alone.
+
+        Amenity provision sustains demand even where crime is elevated.
+        """)
+
+    with p3:
+        st.markdown("""
+        **📊 Evidence-based planning**
+
+        A single city-wide crime statistic hides fundamentally different
+        local dynamics. **Spatially differentiated policy** — using
+        neighbourhood-level GWR coefficients to prioritise interventions
+        — is both empirically justified and practically necessary.
+        """)
+
+    st.markdown("---")
+
+    # ── Limitations and future work ────────────────────────────────────────────
+    col_lim, col_fut = st.columns(2)
+
+    with col_lim:
         st.markdown("### Limitations")
-        st.markdown("""
-        - Cross-sectional — cannot establish causality
-        - Total crime aggregates all offence types equally
-        - Omitted variables: deprivation, property size, age
-        - GWR sensitive to bandwidth choice
-        """)
+        for lim in [
+            "Cross-sectional analysis — cannot establish causality",
+            "Total crime aggregates all offence types equally",
+            "Omitted variables: deprivation, property size, age, condition",
+            "GWR sensitive to bandwidth choice",
+            "Local estimates less stable than global OLS",
+        ]:
+            st.markdown(f"- {lim}")
 
-        st.markdown("### Resources")
+    with col_fut:
+        st.markdown("### Future work")
+        for fut in [
+            "Add IMD deprivation scores to reduce omitted variable bias",
+            "Disaggregate by individual crime types (violent, burglary, ASB)",
+            "Panel methods to track annual crime-price changes 2021–2025",
+            "Replicate in other UK cities to test generalisability",
+            "Causal inference via instrumental variables or diff-in-diff",
+        ]:
+            st.markdown(f"- {fut}")
+
+    st.markdown("---")
+
+    # ── Resources ──────────────────────────────────────────────────────────────
+    st.markdown("### Resources")
+    r1, r2, r3 = st.columns(3)
+    with r1:
         st.markdown("""
-        - [📂 GitHub Repository](https://github.com/layaung-linnlett/bristol-crime-houseprices-gwr)
-        - [🏠 HM Land Registry](https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads)
-        - [🚨 Police.uk](https://data.police.uk/data/)
-        - [🗺️ ONS Geoportal](https://geoportal.statistics.gov.uk/)
+        **📂 Code & data**
+        - [GitHub Repository](https://github.com/layaung-linnlett/bristol-crime-houseprices-gwr)
+        - Full notebook with reproducible pipeline
+        - src/ modules for reuse
+        """)
+    with r2:
+        st.markdown("""
+        **📊 Data sources**
+        - [HM Land Registry](https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads)
+        - [Police.uk](https://data.police.uk/data/)
+        - [ONS Geoportal](https://geoportal.statistics.gov.uk/)
+        """)
+    with r3:
+        st.markdown("""
+        **👤 Author**
+
+        La Yaung Linn Lett
+
+        BSc Data Science & AI
+
+        UWE Bristol, 2026
         """)
