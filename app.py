@@ -806,102 +806,331 @@ elif page == "🗺️  GWR Results":
         '<div class="main-header">GWR Results</div>',
         unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Local crime-price coefficients across '
-        'all 182 Bristol LSOAs</div>',
+        '<div class="sub-header">Allowing the crime-price relationship '
+        'to vary across Bristol\'s 182 neighbourhoods</div>',
         unsafe_allow_html=True)
+
+    st.markdown("""
+    Geographically Weighted Regression fits a **separate local regression
+    at each LSOA**, weighted by distance so that nearby LSOAs have more
+    influence than distant ones. The result: instead of one crime coefficient
+    for all of Bristol, we get **182 local coefficients** — one per neighbourhood.
+    """)
+
+    st.markdown("---")
+
+    # ── Key metrics ────────────────────────────────────────────────────────────
+    st.markdown("### How much better is GWR than OLS?")
 
     gwr_r2  = stats.get("gwr_r2",             0.7155)
     ols_r2  = stats.get("ols_r2",             0.1084)
     gwr_adj = stats.get("gwr_adj_r2",         0.6359)
+    ols_adj = stats.get("ols_adj_r2",         0.0831)
     gwr_aic = stats.get("gwr_aicc",         -199.38)
     ols_aic = stats.get("ols_aicc",          -84.17)
     gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
     gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
     gwr_med = stats.get("gwr_crime_coef_med", -0.1191)
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("GWR R²",         f"{gwr_r2:.3f}",
-              delta=f"+{gwr_r2 - ols_r2:.3f} vs OLS")
-    c2.metric("Adjusted R²",    f"{gwr_adj:.3f}")
-    c3.metric("AICc",           f"{gwr_aic:.1f}",
-              delta=f"{gwr_aic - ols_aic:.1f} vs OLS")
-    c4.metric("Crime coef min", f"{gwr_min:.4f}")
-    c5.metric("Crime coef max", f"+{gwr_max:.4f}")
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value" style="color:#2e7d32">+{:.0f}%</div>
+            <div class="metric-label">R² improvement<br>
+            OLS: {:.3f} → GWR: {:.3f}<br>
+            Same 5 predictors — spatial variation only</div>
+        </div>
+        """.format((gwr_r2 - ols_r2) * 100, ols_r2, gwr_r2),
+        unsafe_allow_html=True)
+
+    with col_b:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value" style="color:#2e7d32">{:.0f} pts</div>
+            <div class="metric-label">AICc improvement<br>
+            OLS: {:.1f} → GWR: {:.1f}<br>
+            &gt;10 pts = strong evidence (Burnham &amp; Anderson, 2002)</div>
+        </div>
+        """.format(abs(gwr_aic - ols_aic), ols_aic, gwr_aic),
+        unsafe_allow_html=True)
+
+    with col_c:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value" style="color:#1f4e79">3×</div>
+            <div class="metric-label">Range of local crime effect<br>
+            OLS global: −0.078 (one number)<br>
+            GWR local: {:.3f} to +{:.3f} (182 numbers)</div>
+        </div>
+        """.format(gwr_min, gwr_max),
+        unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(
-        ["Crime coefficient map", "Coefficient distribution"])
+    st.success(
+        f"✅ **GWR explains {gwr_r2*100:.1f}% of price variation** vs "
+        f"{ols_r2*100:.1f}% for OLS — an improvement of "
+        f"+{(gwr_r2-ols_r2)*100:.1f} percentage points using exactly "
+        f"the same 5 predictors. The improvement comes **entirely** from "
+        f"allowing coefficients to vary spatially across Bristol."
+    )
 
+    st.markdown("---")
+
+    # ── Tabs ───────────────────────────────────────────────────────────────────
+    tab1, tab2, tab3 = st.tabs([
+        "🗺️ Crime coefficient map",
+        "📊 Coefficient distribution",
+        "📋 Model comparison"
+    ])
+
+    # ── Tab 1: Map ─────────────────────────────────────────────────────────────
     with tab1:
+        st.markdown("### Where does crime hurt house prices most?")
         st.markdown("""
-        **How to read this map:** Each LSOA is coloured by its local GWR crime
-        coefficient — the estimated effect of crime on house prices *in that
-        specific neighbourhood*. **Red** = crime strongly lowers prices.
-        **Blue** = crime has little or no negative effect (often city-centre
-        LSOAs with strong amenity access).
+        Each LSOA is coloured by its **local GWR crime coefficient** —
+        the estimated effect of crime on house prices *in that specific
+        neighbourhood*, after controlling for housing type, centrality,
+        schools, and bus access.
         """)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Strongest negative effect",
+                  f"{gwr_min:.4f}",
+                  f"≈ {(np.exp(gwr_min)-1)*100:.1f}% per log crime unit",
+                  delta_color="inverse")
+        c2.metric("Median effect",
+                  f"{gwr_med:.4f}",
+                  f"≈ {(np.exp(gwr_med)-1)*100:.1f}% per log crime unit",
+                  delta_color="inverse")
+        c3.metric("Weakest / positive effect",
+                  f"+{gwr_max:.4f}",
+                  f"≈ +{(np.exp(gwr_max)-1)*100:.1f}% per log crime unit")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         if DATA_AVAILABLE and "gwr_crime_coef" in reg_df.columns:
             max_abs = max(abs(reg_df["gwr_crime_coef"].min()),
                          abs(reg_df["gwr_crime_coef"].max()))
-            st.plotly_chart(make_choropleth(
+
+            fig_gwr = go.Figure(go.Choroplethmapbox(
                 geojson=geojson,
                 locations=reg_df["lsoa_code"],
                 z=reg_df["gwr_crime_coef"],
+                featureidkey="properties.lsoa_code",
                 colorscale=[
-                    [0.0, "#d6604d"], [0.25, "#f4a582"],
+                    [0.0, "#d6604d"],
+                    [0.25, "#f4a582"],
                     [0.5,  "#f7f7f7"],
-                    [0.75, "#92c5de"], [1.0,  "#2166ac"]],
-                title="Local GWR Crime Coefficient by LSOA — Bristol",
-                colorbar_title="Crime coefficient",
+                    [0.75, "#92c5de"],
+                    [1.0,  "#2166ac"]],
                 zmin=-max_abs, zmax=max_abs,
-                hover_template=(
+                colorbar=dict(
+                    title="Crime<br>coefficient",
+                    thickness=14,
+                    tickvals=[round(-max_abs, 2),
+                              round(-max_abs/2, 2), 0,
+                              round(max_abs/2, 2),
+                              round(max_abs, 2)],
+                    ticktext=[
+                        f"{round(-max_abs,2)}<br>Strong −",
+                        f"{round(-max_abs/2,2)}",
+                        "0",
+                        f"{round(max_abs/2,2)}",
+                        f"+{round(max_abs,2)}<br>Positive"]),
+                marker=dict(opacity=0.82, line_width=0.4),
+                hovertemplate=(
                     "<b>%{location}</b><br>"
-                    "Crime coef: %{z:.4f}<extra></extra>"),
-                height=560,
-            ), use_container_width=True)
-            pct_neg = (
-                (reg_df["gwr_crime_coef"] < -0.05).sum() / len(reg_df) * 100
-            )
-            st.info(
-                f"**{pct_neg:.0f}% of LSOAs** show a meaningfully negative "
-                f"crime effect (coefficient < −0.05). The remaining "
-                f"{100 - pct_neg:.0f}% — concentrated near the city centre — "
-                f"show near-zero or positive effects.")
-        elif DATA_AVAILABLE:
-            st.warning(
-                "GWR coefficient column not found. Re-run the save cell in "
-                "your notebook to include `gwr_crime_coef`.")
-        else:
-            show_data_warning()
+                    "Crime coefficient: %{z:.4f}<br>"
+                    "Price effect: ~" +
+                    "%{customdata:.1f}% per log crime unit"
+                    "<extra></extra>"),
+                customdata=[
+                    (np.exp(c) - 1) * 100
+                    for c in reg_df["gwr_crime_coef"]],
+            ))
 
+            fig_gwr.update_layout(
+                mapbox=dict(
+                    style="carto-positron",
+                    center=dict(lat=51.4545, lon=-2.5879),
+                    zoom=11.2),
+                margin=dict(l=0, r=0, t=10, b=0),
+                height=580,
+            )
+            st.plotly_chart(fig_gwr, use_container_width=True)
+
+            pct_neg = (
+                (reg_df["gwr_crime_coef"] < -0.05).sum()
+                / len(reg_df) * 100
+            )
+            col_i1, col_i2 = st.columns(2)
+            col_i1.error(
+                f"🔴 **{pct_neg:.0f}% of LSOAs (dark red):** Crime "
+                f"meaningfully lowers prices (coef < −0.05). Concentrated "
+                f"in outer and south-eastern Bristol where no strong "
+                f"amenity advantages exist to offset crime's negative signal."
+            )
+            col_i2.info(
+                f"🔵 **{100-pct_neg:.0f}% of LSOAs (white/blue):** Crime "
+                f"has little or no negative price effect. Concentrated near "
+                f"the city centre where proximity, schools, and transport "
+                f"sustain demand despite elevated crime levels."
+            )
+        else:
+            st.warning(
+                "GWR coefficient column not found. Re-run the save cell "
+                "in your notebook to include `gwr_crime_coef`.")
+
+    # ── Tab 2: Distribution ─────────────────────────────────────────────────────
     with tab2:
-        st.markdown("#### Distribution of local crime coefficients")
-        st.markdown(
-            "The global OLS estimate (−0.078) sits near the centre but "
-            "conceals the full range from −0.244 to +0.020.")
+        st.markdown("### How much does the crime effect vary?")
+        st.markdown("""
+        The histogram shows all 182 local GWR crime coefficients.
+        The **global OLS estimate** (−0.078) is shown as a dashed red line —
+        it represents the city-wide average that OLS forces on every LSOA.
+        Notice how wide the actual distribution is.
+        """)
+
         if DATA_AVAILABLE and "gwr_crime_coef" in reg_df.columns:
             fig_h = go.Figure()
             fig_h.add_trace(go.Histogram(
-                x=reg_df["gwr_crime_coef"], nbinsx=30,
-                marker_color="#4c72b0", opacity=0.8))
-            fig_h.add_vline(x=-0.0778, line_dash="dash",
-                            line_color="crimson",
-                            annotation_text="OLS global: −0.078")
-            fig_h.add_vline(x=gwr_med, line_dash="dot",
-                            line_color="darkblue",
-                            annotation_text=f"GWR median: {gwr_med:.3f}")
+                x=reg_df["gwr_crime_coef"],
+                nbinsx=25,
+                marker_color="#4c72b0",
+                opacity=0.85,
+                name="GWR local coefficients",
+                hovertemplate=(
+                    "Coefficient: %{x:.3f}<br>"
+                    "LSOAs: %{y}<extra></extra>"),
+            ))
+
+            # OLS line
+            fig_h.add_vline(
+                x=-0.0778, line_dash="dash",
+                line_color="crimson", line_width=2.5,
+                annotation_text="<b>OLS global: −0.078</b><br>"
+                                "(what OLS forces on every LSOA)",
+                annotation_position="top right",
+                annotation_font_color="crimson",
+                annotation_font_size=11)
+
+            # GWR median line
+            fig_h.add_vline(
+                x=gwr_med, line_dash="dot",
+                line_color="#1f4e79", line_width=2.5,
+                annotation_text=f"<b>GWR median: {gwr_med:.3f}</b>",
+                annotation_position="top left",
+                annotation_font_color="#1f4e79",
+                annotation_font_size=11)
+
+            # Shade negative region
+            fig_h.add_vrect(
+                x0=reg_df["gwr_crime_coef"].min(), x1=-0.05,
+                fillcolor="rgba(214,96,77,0.08)",
+                line_width=0,
+                annotation_text="Meaningful negative effect",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="#d6604d")
+
             fig_h.update_layout(
-                xaxis_title="Local crime coefficient",
+                xaxis_title="Local crime coefficient (GWR)",
                 yaxis_title="Number of LSOAs",
-                title="Distribution of GWR Crime Coefficients — 182 Bristol LSOAs",
-                plot_bgcolor="white", height=380)
+                title="<b>Distribution of GWR Crime Coefficients "
+                      "— 182 Bristol LSOAs</b>",
+                plot_bgcolor="white",
+                height=420,
+                showlegend=False,
+            )
             st.plotly_chart(fig_h, use_container_width=True)
+
+            # Key insight
+            range_val = gwr_max - gwr_min
+            ols_val   = -0.0778
+            st.warning(
+                f"⚠️ **The global OLS estimate of −0.078 conceals a range "
+                f"of {range_val:.3f} log points** ({gwr_min:.4f} to "
+                f"+{gwr_max:.4f}). In the most crime-sensitive LSOAs, "
+                f"a one-unit increase in log crime is associated with a "
+                f"**{(np.exp(gwr_min)-1)*100:.1f}% price decrease** — "
+                f"nearly three times the global OLS estimate of "
+                f"{(np.exp(ols_val)-1)*100:.1f}%. Using OLS alone would "
+                f"systematically mis-estimate the crime-price relationship "
+                f"for the majority of Bristol neighbourhoods."
+            )
+
             a, b, c = st.columns(3)
-            a.metric("Minimum", f"{gwr_min:.4f}", "Strongest negative")
-            b.metric("Median",  f"{gwr_med:.4f}")
-            c.metric("Maximum", f"+{gwr_max:.4f}", "Weakest / positive")
+            a.metric("Minimum (strongest −)",
+                     f"{gwr_min:.4f}",
+                     f"{(np.exp(gwr_min)-1)*100:.1f}%",
+                     delta_color="inverse")
+            b.metric("Median",
+                     f"{gwr_med:.4f}",
+                     f"{(np.exp(gwr_med)-1)*100:.1f}%",
+                     delta_color="inverse")
+            c.metric("Maximum (weakest / +)",
+                     f"+{gwr_max:.4f}",
+                     f"+{(np.exp(gwr_max)-1)*100:.1f}%")
+
         else:
-            show_data_warning()
+            st.warning("Upload regression_dataset.geojson to see this chart.")
+
+    # ── Tab 3: Model comparison ─────────────────────────────────────────────────
+    with tab3:
+        st.markdown("### OLS vs GWR — a rigorous comparison")
+        st.markdown("""
+        Three standard metrics are used to compare the models.
+        All three tell the same story: **GWR is substantially better.**
+        """)
+
+        col_t, col_e = st.columns([1, 1.2])
+
+        with col_t:
+            st.markdown("#### Performance metrics")
+            st.table(pd.DataFrame({
+                "Metric":      ["R²", "Adjusted R²", "AICc"],
+                "OLS":         [f"{ols_r2:.4f}",
+                                f"{ols_adj:.4f}",
+                                f"{ols_aic:.2f}"],
+                "GWR":         [f"{gwr_r2:.4f}",
+                                f"{gwr_adj:.4f}",
+                                f"{gwr_aic:.2f}"],
+                "Improvement": [
+                    f"+{gwr_r2-ols_r2:.4f}",
+                    f"+{gwr_adj-ols_adj:.4f}",
+                    f"{gwr_aic-ols_aic:.2f} (lower = better)"],
+            }))
+
+        with col_e:
+            st.markdown("#### What each metric means")
+            st.markdown(f"""
+            **R² (+{gwr_r2-ols_r2:.3f}):**
+            GWR explains {gwr_r2*100:.1f}% of price variation vs
+            {ols_r2*100:.1f}% for OLS. The improvement comes
+            entirely from spatial variation — same predictors, same data.
+
+            **Adjusted R² (+{gwr_adj-ols_adj:.3f}):**
+            Penalises model complexity. Even after accounting for GWR's
+            additional effective parameters, it still outperforms OLS
+            substantially. The extra parameters are earning their keep.
+
+            **AICc ({gwr_aic-ols_aic:.1f}):**
+            Balances fit vs complexity. A difference > 10 points is
+            considered strong evidence in favour of the lower-AICc model
+            (Burnham & Anderson, 2002). A difference of
+            **{abs(gwr_aic-ols_aic):.0f} points** is overwhelming evidence.
+            """)
+
+        st.success(
+            f"✅ **Verdict:** GWR outperforms OLS on all three metrics "
+            f"simultaneously. The {abs(gwr_aic-ols_aic):.0f}-point AICc "
+            f"difference provides overwhelming statistical evidence that "
+            f"the crime-price relationship varies spatially across Bristol "
+            f"— and that a spatially varying model is both warranted and "
+            f"necessary. → See Key Findings for policy implications."
+        )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 5 — KEY FINDINGS
