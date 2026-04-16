@@ -166,9 +166,22 @@ def show_data_warning():
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🏠 Bristol Crime\n## & House Prices")
-    st.markdown("*Spatial Analysis Using GWR*")
+    st.markdown("""
+    <div style="text-align:center; padding: 0.5rem 0 1rem 0;">
+        <div style="font-size:2.5rem;">🏠</div>
+        <div style="font-size:1.1rem; font-weight:700; color:#1f4e79;
+                    line-height:1.3; margin-top:0.3rem;">
+            Bristol Crime<br>& House Prices
+        </div>
+        <div style="font-size:0.8rem; color:#888; margin-top:0.3rem;
+                    font-style:italic;">
+            Spatial Analysis Using GWR
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
+
     page = st.radio("Navigate", options=[
         "🏠  Project Overview",
         "📊  Exploratory Analysis",
@@ -176,20 +189,68 @@ with st.sidebar:
         "🗺️  GWR Results",
         "🔍  Key Findings",
     ], label_visibility="collapsed")
+
     st.markdown("---")
-    st.markdown("**Dataset**")
-    st.markdown(f"- {stats.get('n_lsoas', 182):,} LSOAs")
-    st.markdown(f"- {stats.get('n_house_sales', 34543):,} house sales")
-    st.markdown(f"- {stats.get('n_crime_records', 159666):,} crime records")
-    st.markdown("- Period: 2021–2025")
+
+    # Dataset stats
+    st.markdown("""
+    <div style="font-size:0.85rem; color:#444;">
+        <div style="font-weight:700; margin-bottom:0.5rem;
+                    color:#1f4e79;">📁 Dataset</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    n_lsoas   = stats.get("n_lsoas",          182)
+    n_sales   = stats.get("n_house_sales",   34543)
+    n_crimes  = stats.get("n_crime_records", 159666)
+
+    st.markdown(f"""
+    <div style="font-size:0.85rem; color:#444; line-height:2;">
+        🏘️ &nbsp;<b>{n_lsoas:,}</b> LSOAs<br>
+        🏠 &nbsp;<b>{n_sales:,}</b> house sales<br>
+        🚨 &nbsp;<b>{n_crimes:,}</b> crime records<br>
+        📅 &nbsp;<b>2021–2025</b>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
-    st.markdown("**Author:** La Yaung Linn Lett")
-    st.markdown("**UWE Bristol, 2026**")
+
+    # Model results summary
+    gwr_r2 = stats.get("gwr_r2", 0.716)
+    ols_r2 = stats.get("ols_r2", 0.108)
+
+    st.markdown(f"""
+    <div style="font-size:0.85rem; color:#444;">
+        <div style="font-weight:700; margin-bottom:0.5rem;
+                    color:#1f4e79;">📊 Key Results</div>
+        <div style="line-height:2.0;">
+            OLS R²: &nbsp;<b>{ols_r2:.3f}</b><br>
+            GWR R²: &nbsp;<b style="color:#2e7d32">{gwr_r2:.3f}</b>
+            &nbsp;✓<br>
+            Moran's I: &nbsp;<b>0.4775</b><br>
+            Crime coef: &nbsp;<b>−0.244 to +0.020</b>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Author
+    st.markdown("""
+    <div style="font-size:0.82rem; color:#555; line-height:1.8;">
+        <b>👤 Author</b><br>
+        La Yaung Linn Lett<br>
+        BSc Data Science & AI<br>
+        UWE Bristol, 2026
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     st.markdown(
-        "[📂 GitHub](https://github.com/layaung-linnlett/"
+        "[📂 GitHub Repository](https://github.com/layaung-linnlett/"
         "bristol-crime-houseprices-gwr)"
     )
-
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — PROJECT OVERVIEW
 # ══════════════════════════════════════════════════════════════════════════════
