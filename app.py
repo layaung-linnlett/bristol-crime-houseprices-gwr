@@ -216,7 +216,7 @@ with st.sidebar:
     st.markdown("---")
 
     # Model results summary
-    gwr_r2 = stats.get("gwr_r2", 0.716)
+    gwr_r2 = stats.get("gwr_r2", 0.7393)
     ols_r2 = stats.get("ols_r2", 0.108)
 
     st.markdown(f"""
@@ -227,8 +227,8 @@ with st.sidebar:
             OLS R²: &nbsp;<b>{ols_r2:.3f}</b><br>
             GWR R²: &nbsp;<b style="color:#2e7d32">{gwr_r2:.3f}</b>
             &nbsp;✓<br>
-            Moran's I: &nbsp;<b>0.4775</b><br>
-            Crime coef: &nbsp;<b>−0.244 to +0.020</b>
+            Moran's I: &nbsp;<b>0.5408</b><br>
+            Crime coef: &nbsp;<b>−0.256 to +0.025</b>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -295,9 +295,9 @@ if page == "🏠  Project Overview":
             "2. Cleaning":            "Filter Bristol, IQR outlier removal, LSOA summaries",
             "3. VIF diagnostic":      "Collinearity detected → removed prop_leasehold (VIF=34.7)",
             "4. OLS baseline":        "statsmodels — full p-values, CIs, F-statistic",
-            "5. Moran's I":           "I=0.4775 (p=0.001) → spatial autocorrelation confirmed",
+            "5. Moran's I":           "I=0.5408 (p=0.001) → spatial autocorrelation confirmed",
             "6. GWR":                 "Adaptive bisquare kernel, AICc bandwidth selection",
-            "7. Comparison":          "R² 0.108 → 0.716 using same 5 predictors",
+            "7. Comparison":          "R² 0.108 → 0.739 using same 5 predictors",
         }.items():
             st.markdown(f"**{step}** — {detail}")
 
@@ -306,7 +306,7 @@ if page == "🏠  Project Overview":
         st.dataframe(pd.DataFrame({
             "Metric":     ["R²", "Adjusted R²", "AICc"],
             "OLS":        ["0.108", "0.083", "−84.17"],
-            "GWR":        ["0.716", "0.636", "−199.38"],
+            "GWR":        ["0.739", "0.662", "−209.48"],
             "GWR better": ["✓", "✓", "✓ (lower)"],
         }), use_container_width=True, hide_index=True)
 
@@ -716,7 +716,7 @@ elif page == "📈  OLS Baseline Model":
         predictors constant.
 
         But this is a *city-wide average* — GWR will show this effect
-        ranges from **−24.4%** to **+2.0%** depending on location.
+        ranges from **−22.6%** to **+2.6%** depending on location.
         """)
 
     with col_r:
@@ -726,7 +726,7 @@ elif page == "📈  OLS Baseline Model":
             "Grey = not significant. "
             "If the CI crosses zero, the effect is indistinguishable from chance.")
 
-        coefs   = [-0.0778, -0.013, -0.021, -0.025,  0.045]
+        coefs   = [-0.0778, -0.0079, -0.0336, -0.0253, -0.0842]
         pvals   = [ 0.001,   0.894,  0.018,  0.106,  0.534]
         labels  = ["log(Crime)", "Prop. Flats",
                    "Dist. to Centre (km)",
@@ -790,7 +790,7 @@ elif page == "📈  OLS Baseline Model":
     col_m, col_map = st.columns([1, 1.5])
 
     with col_m:
-        mi   = stats.get("morans_I",      0.4775)
+        mi   = stats.get("morans_I",      0.5408)
         mi_p = stats.get("morans_pvalue", 0.001)
 
         st.markdown("#### Moran's I result")
@@ -847,7 +847,7 @@ elif page == "📈  OLS Baseline Model":
                 "under-predicts prices here. "
                 "🔵 Blue cluster (south/south-east) = OLS consistently "
                 "over-predicts. This spatial pattern is exactly what "
-                "Moran's I = 0.4775 quantifies.")
+                "Moran's I = 0.5408 quantifies.")
         else:
             st.info("Upload regression_dataset.geojson to see the residual map.")
 
@@ -855,7 +855,7 @@ elif page == "📈  OLS Baseline Model":
     st.success(
         "✅ **Conclusion from OLS:** The global model explains only 10.8% "
         "of price variation, and its residuals are strongly spatially "
-        "clustered (Moran's I = 0.4775, p = 0.001). A spatially varying "
+        "clustered (Moran's I = 0.5408, p = 0.001). A spatially varying "
         "model — **Geographically Weighted Regression** — is both "
         "statistically justified and necessary. → See GWR Results"
     )
@@ -883,15 +883,15 @@ elif page == "🗺️  GWR Results":
     # ── Key metrics ────────────────────────────────────────────────────────────
     st.markdown("### How much better is GWR than OLS?")
 
-    gwr_r2  = stats.get("gwr_r2",             0.7155)
+    gwr_r2  = stats.get("gwr_r2",             0.7393)
     ols_r2  = stats.get("ols_r2",             0.1084)
-    gwr_adj = stats.get("gwr_adj_r2",         0.6359)
+    gwr_adj = stats.get("gwr_adj_r2",         0.6622)
     ols_adj = stats.get("ols_adj_r2",         0.0831)
-    gwr_aic = stats.get("gwr_aicc",         -199.38)
+    gwr_aic = stats.get("gwr_aicc",         -209.48)
     ols_aic = stats.get("ols_aicc",          -84.17)
-    gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
-    gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
-    gwr_med = stats.get("gwr_crime_coef_med", -0.1191)
+    gwr_min = stats.get("gwr_crime_coef_min", -0.2562)
+    gwr_max = stats.get("gwr_crime_coef_max",  0.0253)
+    gwr_med = stats.get("gwr_crime_coef_med", -0.1148)
 
     col_a, col_b, col_c = st.columns(3)
 
@@ -1230,7 +1230,7 @@ elif page == "🔍  Key Findings":
     </div>""", unsafe_allow_html=True)
     s3.markdown("""
     <div class="metric-card">
-        <div class="metric-value" style="color:#2e7d32">71.6%</div>
+        <div class="metric-value" style="color:#2e7d32">73.9%</div>
         <div class="metric-label">Variance explained<br>by GWR<br>(same predictors)</div>
     </div>""", unsafe_allow_html=True)
     s4.markdown("""
@@ -1240,7 +1240,7 @@ elif page == "🔍  Key Findings":
     </div>""", unsafe_allow_html=True)
     s5.markdown("""
     <div class="metric-card">
-        <div class="metric-value">79%</div>
+        <div class="metric-value">76%</div>
         <div class="metric-label">LSOAs with<br>meaningful negative<br>crime effect</div>
     </div>""", unsafe_allow_html=True)
 
@@ -1255,9 +1255,9 @@ elif page == "🔍  Key Findings":
         col1, col2 = st.columns([1.5, 1])
         with col1:
             st.markdown("""
-            Both Pearson and Spearman correlation tests return **r = −0.23**
-            (p < 0.05) between log total crimes and log median house price
-            across Bristol's 182 LSOAs.
+            Both Pearson and Spearman correlation tests return **Pearson r = −0.23,
+            Spearman ρ = −0.28** (both p < 0.05) between log total crimes and
+            log median house price across Bristol's 182 LSOAs.
 
             An independent samples t-test confirms that **high-crime LSOAs
             have statistically significantly lower median prices** than
@@ -1269,7 +1269,7 @@ elif page == "🔍  Key Findings":
             """)
         with col2:
             st.metric("Pearson r",  "−0.23", "p < 0.05")
-            st.metric("Spearman ρ", "−0.23", "p < 0.05")
+            st.metric("Spearman ρ", "−0.28", "p < 0.05")
             st.metric("Price gap",  "~7–10%",
                       "high vs low crime areas",
                       delta_color="inverse")
@@ -1281,7 +1281,7 @@ elif page == "🔍  Key Findings":
             st.markdown("""
             The global OLS model explains only **10.8%** of price variation
             (R² = 0.108). More critically, Moran's I applied to the OLS
-            residuals returns **I = 0.4775 (p = 0.001)** — confirming
+            residuals returns **I = 0.5408 (p = 0.001)** — confirming
             strong positive spatial autocorrelation.
 
             This means neighbouring LSOAs have **systematically similar
@@ -1295,7 +1295,7 @@ elif page == "🔍  Key Findings":
             """)
         with col2:
             st.metric("OLS R²",    "0.108",  "Only 10.8% explained")
-            st.metric("Moran's I", "0.4775", "p = 0.001",
+            st.metric("Moran's I", "0.5408", "p = 0.001",
                       delta_color="inverse")
             st.metric("Verdict",   "❌ OLS fails",
                       "independence assumption violated",
@@ -1305,9 +1305,9 @@ elif page == "🔍  Key Findings":
     with st.expander("✅ Finding 3 — GWR substantially outperforms OLS"):
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            gwr_r2 = stats.get("gwr_r2", 0.7155)
+            gwr_r2 = stats.get("gwr_r2", 0.7393)
             ols_r2 = stats.get("ols_r2", 0.1084)
-            gwr_aic = stats.get("gwr_aicc", -199.38)
+            gwr_aic = stats.get("gwr_aicc", -209.48)
             ols_aic = stats.get("ols_aicc", -84.17)
             st.markdown(f"""
             Using the same 5 predictors, GWR achieves **R² = {gwr_r2:.3f}**
@@ -1340,8 +1340,8 @@ elif page == "🔍  Key Findings":
     with st.expander("✅ Finding 4 — The crime effect varies dramatically across space"):
         col1, col2 = st.columns([1.5, 1])
         with col1:
-            gwr_min = stats.get("gwr_crime_coef_min", -0.2442)
-            gwr_max = stats.get("gwr_crime_coef_max",  0.0203)
+            gwr_min = stats.get("gwr_crime_coef_min", -0.2562)
+            gwr_max = stats.get("gwr_crime_coef_max",  0.0253)
             st.markdown(f"""
             The local GWR crime coefficient ranges from **{gwr_min:.4f}
             to +{gwr_max:.4f}** across Bristol's 182 LSOAs.
