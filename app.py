@@ -622,13 +622,6 @@ elif page == "📊  Exploratory Analysis":
     # ── Tab 4 — Data Coverage Investigation ───────────────────────────────────
     with tab4:
         st.markdown("### ⚠️ Why do the maps have missing areas?")
-        st.markdown("""
-        During the presentation, a question arose about why some areas of
-        Bristol appear blank on the maps. This tab documents the full
-        investigation — showing exactly where data was lost and why.
-        """)
-
-        st.markdown("---")
 
         # Pipeline counts
         st.markdown("#### 📊 LSOA counts at each pipeline stage")
