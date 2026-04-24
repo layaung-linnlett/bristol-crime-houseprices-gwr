@@ -698,82 +698,77 @@ elif page == "📊  Exploratory Analysis":
         explanation.
         """)
 
-        if full_boundaries is not None and DATA_AVAILABLE:
-            # Build presence lookup from final dataset
-            present_codes = set(reg_df["lsoa_code"].tolist())
+        if full_boundaries is not None:
+            # ── Build dataframe from pre-computed properties ───────────────────
+            # The notebook saves status (0=missing, 1=present) and
+            # status_label directly into the GeoJSON properties.
+            # Fall back to computing from reg_df if properties not found.
+            present_codes = set(reg_df["lsoa_code"].tolist()) if DATA_AVAILABLE else set()
 
-            # Assign status to each feature in full boundaries
-            missing_geojson = {
-                "type": "FeatureCollection",
-                "features": full_boundaries["features"]
-            }
-
-            # Build dataframe for all 268 LSOAs
             all_rows = []
             for feat in full_boundaries["features"]:
-                props = feat.get("properties", {})
-                code = (props.get("lsoa21cd") or
-                        props.get("LSOA21CD") or
-                        props.get("lsoa_code") or
-                        props.get("LSOA11CD") or
-                        props.get("lsoa11cd") or "")
-                status = 1 if code in present_codes else 0
-                label  = "✅ In final dataset" if code in present_codes else "❌ Missing"
-                all_rows.append({
-                    "lsoa_code": code,
-                    "status":    status,
-                    "label":     label,
-                })
+                props  = feat.get("properties", {})
+                # Try lsoa_code first (saved by notebook), then ONS variants
+                code   = (props.get("lsoa_code") or
+                          props.get("lsoa21cd")  or
+                          props.get("LSOA21CD")  or
+                          props.get("LSOA11CD")  or
+                          props.get("lsoa11cd")  or "")
+                # Use pre-saved status if available, else compute from reg_df
+                if "status" in props:
+                    status = int(props["status"])
+                    label  = props.get("status_label",
+                                       "✅ In dataset" if status == 1 else "❌ Missing")
+                else:
+                    status = 1 if code in present_codes else 0
+                    label  = ("✅ In final dataset"
+                               if code in present_codes else "❌ Missing")
+                all_rows.append({"lsoa_code": code,
+                                 "status": status, "label": label})
             all_df = pd.DataFrame(all_rows)
 
-            # Detect and convert BNG coordinates if needed
+            # ── Coordinate conversion (BNG → WGS84 if needed) ─────────────────
+            # The notebook cell above saves in WGS84 already.
+            # This fallback handles raw ONS shapefiles.
             try:
-                sample = full_boundaries["features"][0]["geometry"]["coordinates"][0][0]
+                sample = (full_boundaries["features"][0]
+                          ["geometry"]["coordinates"][0][0])
                 if isinstance(sample[0], list):
                     sample = sample[0]
                 if abs(sample[0]) > 1000:
                     import pyproj
-                    transformer = pyproj.Transformer.from_crs(
+                    tf = pyproj.Transformer.from_crs(
                         "EPSG:27700", "EPSG:4326", always_xy=True)
-                    def _convert_ring(ring):
-                        return [list(transformer.transform(c[0], c[1])) for c in ring]
+                    def _cvt(ring):
+                        return [list(tf.transform(c[0], c[1])) for c in ring]
                     for feat in full_boundaries["features"]:
-                        geom = feat["geometry"]
-                        if geom["type"] == "Polygon":
-                            geom["coordinates"] = [_convert_ring(r) for r in geom["coordinates"]]
-                        elif geom["type"] == "MultiPolygon":
-                            geom["coordinates"] = [[_convert_ring(r) for r in poly]
-                                                   for poly in geom["coordinates"]]
+                        g = feat["geometry"]
+                        if g["type"] == "Polygon":
+                            g["coordinates"] = [_cvt(r) for r in g["coordinates"]]
+                        elif g["type"] == "MultiPolygon":
+                            g["coordinates"] = [[_cvt(r) for r in p]
+                                                for p in g["coordinates"]]
             except Exception:
                 pass
 
-            # Detect featureidkey
-            sample_props = full_boundaries["features"][0].get("properties", {})
-            if "lsoa21cd" in sample_props:
-                fid_key = "properties.lsoa21cd"
-            elif "LSOA21CD" in sample_props:
-                fid_key = "properties.LSOA21CD"
-            elif "lsoa_code" in sample_props:
-                fid_key = "properties.lsoa_code"
-            elif "LSOA11CD" in sample_props:
-                fid_key = "properties.LSOA11CD"
-            else:
-                fid_key = "properties.lsoa11cd"
+            # ── Build Plotly interactive choropleth ────────────────────────────
+            n_missing = int((all_df["status"] == 0).sum())
+            n_present = int((all_df["status"] == 1).sum())
 
             fig_missing = go.Figure(go.Choroplethmapbox(
-                geojson=missing_geojson,
+                geojson=full_boundaries,
                 locations=all_df["lsoa_code"],
                 z=all_df["status"],
-                featureidkey=fid_key,
+                featureidkey="properties.lsoa_code",
                 colorscale=[
-                    [0.0, "#d62728"],   # 0 = missing  → red
-                    [0.5, "#d62728"],
-                    [0.5, "#aaaaaa"],   # 1 = present  → grey
-                    [1.0, "#aaaaaa"],
+                    [0.00, "#d62728"],  # 0 = missing → red
+                    [0.49, "#d62728"],
+                    [0.51, "#b0b0b0"],  # 1 = present → grey
+                    [1.00, "#b0b0b0"],
                 ],
                 zmin=0, zmax=1,
                 showscale=False,
-                marker=dict(opacity=0.80, line_width=0.4,
+                marker=dict(opacity=0.82, line_width=0.5,
                             line_color="white"),
                 hovertemplate=(
                     "<b>%{location}</b><br>"
@@ -785,12 +780,14 @@ elif page == "📊  Exploratory Analysis":
                 mapbox=dict(
                     style="carto-positron",
                     center=dict(lat=51.4545, lon=-2.5879),
-                    zoom=10.2,
+                    zoom=10.0,
                 ),
                 margin=dict(l=0, r=0, t=40, b=0),
-                height=520,
+                height=540,
                 title=dict(
-                    text="<b>Missing LSOAs — Causing the Hole in Map</b>",
+                    text=(f"<b>Missing LSOAs — Causing the Hole in Map</b>"
+                          f"  <span style='font-size:12px; color:grey'>"
+                          f"({n_missing} missing · {n_present} present)</span>"),
                     font=dict(size=14), x=0.5,
                 ),
             )
