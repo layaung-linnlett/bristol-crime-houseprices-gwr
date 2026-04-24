@@ -89,11 +89,21 @@ def load_crime_clean():
     df["year"]  = df["Month"].dt.year
     return df
 
-reg_df, geojson = load_regression_data()
-stats           = load_summary_stats()
-house_df        = load_house_clean()
-crime_df        = load_crime_clean()
-DATA_AVAILABLE  = reg_df is not None
+@st.cache_data
+def load_full_boundaries():
+    """Load the full ONS shapefile GeoJSON (268 LSOAs) for missing-LSOA map."""
+    path = DATA_DIR / "full_boundaries.geojson"
+    if not path.exists():
+        return None
+    with open(path, "r") as f:
+        return json.load(f)
+
+reg_df, geojson   = load_regression_data()
+stats             = load_summary_stats()
+house_df          = load_house_clean()
+crime_df          = load_crime_clean()
+full_boundaries   = load_full_boundaries()
+DATA_AVAILABLE    = reg_df is not None
 
 # ── Map helper ─────────────────────────────────────────────────────────────────
 BRISTOL_CENTER = dict(lat=51.4545, lon=-2.5879)
@@ -342,8 +352,8 @@ elif page == "📊  Exploratory Analysis":
         unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["💰 Price distribution", "🚨 Crime trends", "🗺️ Spatial maps",
-         "⚠️ Data Coverage"])
+        ["💰 Price distribution", "🚨 Crime trends",
+         "🗺️ Spatial maps", "⚠️ Data Coverage"])
 
     # ── Tab 1 — Price distribution ─────────────────────────────────────────────
     with tab1:
@@ -590,19 +600,6 @@ elif page == "📊  Exploratory Analysis":
                 "**This is why we need GWR.**"
             )
 
-            st.info(
-                "🔍 **Why are some areas missing from the maps?** "
-                "The maps show 182 LSOAs rather than all areas in Bristol. "
-                "An investigation revealed that 86 LSOAs were dropped during "
-                "the inner join merge because the ONS shapefile (268 LSOAs) "
-                "covers a wider geographic boundary than the Police.uk crime "
-                "recording area (189 LSOAs). All 86 missing LSOAs had house "
-                "sales recorded but no crimes — they fall on Bristol's periphery "
-                "bordering South Gloucestershire and North Somerset, outside the "
-                "Avon & Somerset Police recording boundary. "
-                "See the **⚠️ Data Coverage** tab for the full investigation."
-            )
-
             # Quick stats
             st.markdown("#### At a glance")
             g1, g2, g3, g4 = st.columns(4)
@@ -622,16 +619,18 @@ elif page == "📊  Exploratory Analysis":
     # ── Tab 4 — Data Coverage Investigation ───────────────────────────────────
     with tab4:
         st.markdown("### ⚠️ Why do the maps have missing areas?")
-
-        # Pipeline counts
-        st.markdown("#### 📊 LSOA counts at each pipeline stage")
         st.markdown("""
-        By comparing LSOA counts at every stage of the data pipeline,
-        we can pinpoint exactly where and why LSOAs go missing.
+        When generating the spatial maps, blank areas appeared across Bristol.
+        Rather than ignoring this, a systematic investigation was run to
+        diagnose **exactly where and why LSOAs go missing** at each pipeline
+        stage.
         """)
+        st.markdown("---")
 
-        pipeline_data = pd.DataFrame({
-            "Pipeline Stage":   [
+        # ── Pipeline counts table ──────────────────────────────────────────────
+        st.markdown("#### 📊 LSOA counts at each pipeline stage")
+        pipeline_df = pd.DataFrame({
+            "Pipeline Stage": [
                 "ONS Shapefile (all Bristol boundaries)",
                 "House price data (after aggregation)",
                 "Crime data (Police.uk)",
@@ -645,27 +644,23 @@ elif page == "📊  Exploratory Analysis":
                 "After inner join: only LSOAs present in ALL datasets",
             ],
         })
-        st.dataframe(pipeline_data, use_container_width=True, hide_index=True)
+        st.dataframe(pipeline_df, use_container_width=True, hide_index=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("---")
 
-        # Visual pipeline
-        col_pipe, col_num = st.columns([1.5, 1])
+        # ── Diagnosis + numbers ────────────────────────────────────────────────
+        col_diag, col_nums = st.columns([1.6, 1])
 
-        with col_pipe:
+        with col_diag:
             st.markdown("#### 🔍 Where did the 86 LSOAs go?")
-            st.markdown("""
-            The investigation diagnosed **every single missing LSOA:**
-            """)
-
-            diag_data = pd.DataFrame({
-                "Cause":        [
-                    "🚔 In house data — NOT in crime data",
-                    "🏠 In crime data — NOT in house data",
-                    "❌ Missing from both datasets",
-                    "🔗 Lost during inner join merge",
+            diag_df = pd.DataFrame({
+                "Cause": [
+                    "In house data — NOT in crime data",
+                    "In crime data — NOT in house data",
+                    "Missing from both datasets",
+                    "Lost during inner join merge",
                 ],
-                "Count": [86, 0, 0, 0],
+                "Count":   [86, 0, 0, 0],
                 "Verdict": [
                     "⬅️ ROOT CAUSE",
                     "Not applicable",
@@ -673,8 +668,7 @@ elif page == "📊  Exploratory Analysis":
                     "Consequence of above",
                 ],
             })
-            st.dataframe(diag_data, use_container_width=True, hide_index=True)
-
+            st.dataframe(diag_df, use_container_width=True, hide_index=True)
             st.error(
                 "🔴 **Root cause confirmed:** All 86 missing LSOAs had house "
                 "sales recorded in Land Registry — but **zero crimes recorded** "
@@ -683,127 +677,265 @@ elif page == "📊  Exploratory Analysis":
                 "boundary** for Avon & Somerset Police."
             )
 
-        with col_num:
+        with col_nums:
             st.markdown("#### 📉 The numbers")
             st.metric("Shapefile LSOAs",     "268", "Full ONS boundary")
-            st.metric("Crime data LSOAs",    "189", "Police recording area only",
-                      delta_color="inverse")
+            st.metric("Crime data LSOAs",    "189",
+                      "Police recording area only", delta_color="inverse")
             st.metric("Final dataset LSOAs", "182",
                       "After inner join + IQR cleaning")
             st.metric("Missing LSOAs",       "86",
-                      "All due to boundary mismatch",
-                      delta_color="inverse")
+                      "All due to boundary mismatch", delta_color="inverse")
 
         st.markdown("---")
 
-        # Explanation
-        st.markdown("#### 🗺️ Why does this happen?")
-        col_e1, col_e2 = st.columns(2)
+        # ── Missing LSOAs map ──────────────────────────────────────────────────
+        st.markdown("#### 🗺️ Where are the missing LSOAs?")
+        st.markdown("""
+        The map below shows **which LSOAs are missing** (red) versus
+        **present in the final dataset** (grey). The spatial pattern
+        of the missing areas is the key evidence for the boundary mismatch
+        explanation.
+        """)
 
-        with col_e1:
+        if full_boundaries is not None and DATA_AVAILABLE:
+            # Build presence lookup from final dataset
+            present_codes = set(reg_df["lsoa_code"].tolist())
+
+            # Assign status to each feature in full boundaries
+            missing_geojson = {
+                "type": "FeatureCollection",
+                "features": full_boundaries["features"]
+            }
+
+            # Build dataframe for all 268 LSOAs
+            all_rows = []
+            for feat in full_boundaries["features"]:
+                props = feat.get("properties", {})
+                code = (props.get("lsoa21cd") or
+                        props.get("LSOA21CD") or
+                        props.get("lsoa_code") or
+                        props.get("LSOA11CD") or
+                        props.get("lsoa11cd") or "")
+                status = 1 if code in present_codes else 0
+                label  = "✅ In final dataset" if code in present_codes else "❌ Missing"
+                all_rows.append({
+                    "lsoa_code": code,
+                    "status":    status,
+                    "label":     label,
+                })
+            all_df = pd.DataFrame(all_rows)
+
+            # Detect and convert BNG coordinates if needed
+            try:
+                sample = full_boundaries["features"][0]["geometry"]["coordinates"][0][0]
+                if isinstance(sample[0], list):
+                    sample = sample[0]
+                if abs(sample[0]) > 1000:
+                    import pyproj
+                    transformer = pyproj.Transformer.from_crs(
+                        "EPSG:27700", "EPSG:4326", always_xy=True)
+                    def _convert_ring(ring):
+                        return [list(transformer.transform(c[0], c[1])) for c in ring]
+                    for feat in full_boundaries["features"]:
+                        geom = feat["geometry"]
+                        if geom["type"] == "Polygon":
+                            geom["coordinates"] = [_convert_ring(r) for r in geom["coordinates"]]
+                        elif geom["type"] == "MultiPolygon":
+                            geom["coordinates"] = [[_convert_ring(r) for r in poly]
+                                                   for poly in geom["coordinates"]]
+            except Exception:
+                pass
+
+            # Detect featureidkey
+            sample_props = full_boundaries["features"][0].get("properties", {})
+            if "lsoa21cd" in sample_props:
+                fid_key = "properties.lsoa21cd"
+            elif "LSOA21CD" in sample_props:
+                fid_key = "properties.LSOA21CD"
+            elif "lsoa_code" in sample_props:
+                fid_key = "properties.lsoa_code"
+            elif "LSOA11CD" in sample_props:
+                fid_key = "properties.LSOA11CD"
+            else:
+                fid_key = "properties.lsoa11cd"
+
+            fig_missing = go.Figure(go.Choroplethmapbox(
+                geojson=missing_geojson,
+                locations=all_df["lsoa_code"],
+                z=all_df["status"],
+                featureidkey=fid_key,
+                colorscale=[
+                    [0.0, "#d62728"],   # 0 = missing  → red
+                    [0.5, "#d62728"],
+                    [0.5, "#aaaaaa"],   # 1 = present  → grey
+                    [1.0, "#aaaaaa"],
+                ],
+                zmin=0, zmax=1,
+                showscale=False,
+                marker=dict(opacity=0.80, line_width=0.4,
+                            line_color="white"),
+                hovertemplate=(
+                    "<b>%{location}</b><br>"
+                    "%{customdata}<extra></extra>"
+                ),
+                customdata=all_df["label"],
+            ))
+            fig_missing.update_layout(
+                mapbox=dict(
+                    style="carto-positron",
+                    center=dict(lat=51.4545, lon=-2.5879),
+                    zoom=10.2,
+                ),
+                margin=dict(l=0, r=0, t=40, b=0),
+                height=520,
+                title=dict(
+                    text="<b>Missing LSOAs — Causing the Hole in Map</b>",
+                    font=dict(size=14), x=0.5,
+                ),
+            )
+
+            # Custom legend
+            leg_col1, leg_col2 = st.columns([1, 3])
+            with leg_col1:
+                st.markdown("""
+                <div style="margin-top:0.5rem;">
+                    <span style="display:inline-block; width:14px; height:14px;
+                                 background:#d62728; border-radius:3px;
+                                 margin-right:6px; vertical-align:middle;"></span>
+                    <b>❌ Missing (86 LSOAs)</b><br>
+                    <span style="display:inline-block; width:14px; height:14px;
+                                 background:#aaaaaa; border-radius:3px;
+                                 margin-right:6px; vertical-align:middle;
+                                 margin-top:4px;"></span>
+                    <b>✅ In dataset (182 LSOAs)</b>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.plotly_chart(fig_missing, use_container_width=True)
+
+            # Pattern analysis
+            st.markdown("#### 📍 What the map reveals")
+            loc_col1, loc_col2 = st.columns(2)
+
+            with loc_col1:
+                st.markdown("""
+                **Missing areas confirmed:**
+                - 🔴 **Large cluster — north-west**
+                  (Avonmouth, Lawrence Weston — bordering S. Gloucestershire)
+                - 🔴 **Strip along north** border
+                - 🔴 **Strip along east** (Kingswood — S. Gloucestershire)
+                - 🔴 **Band along south** (bordering N. Somerset)
+                - 🔴 **Central cluster** near harbour / inner-city zones
+                """)
+
+            with loc_col2:
+                st.warning(
+                    "⚠️ **Important nuance:** The majority of missing LSOAs "
+                    "cluster on Bristol's **outer edges** — consistent with "
+                    "the Avon & Somerset Police boundary explanation. "
+                    "However, there is **also a central cluster** near the "
+                    "harbour and some inner-city areas. These may be "
+                    "commercial/industrial zones with insufficient residential "
+                    "sales, or areas recorded under a different police "
+                    "administrative boundary. A LSOA-by-LSOA reconciliation "
+                    "would be needed to confirm the exact reason for every "
+                    "missing area."
+                )
+
+        elif DATA_AVAILABLE and full_boundaries is None:
+            st.info(
+                "📂 **To display the missing LSOAs map**, add the full ONS "
+                "boundary file to your `data/` folder:\n\n"
+                "1. Download **LSOA (Dec 2021) Boundaries UK BGC** from "
+                "[ONS Geoportal](https://geoportal.statistics.gov.uk/)\n"
+                "2. Convert to GeoJSON and save as `data/full_boundaries.geojson`\n"
+                "3. Restart the app\n\n"
+                "The map will then show all 268 LSOAs with missing ones "
+                "highlighted in red."
+            )
+        else:
+            st.warning("⚠️ Load regression_dataset.geojson first.")
+
+        st.markdown("---")
+
+        # ── Why does this happen ───────────────────────────────────────────────
+        st.markdown("#### 🗺️ Why does this happen?")
+        why_col1, why_col2 = st.columns(2)
+
+        with why_col1:
             st.markdown("""
             **The ONS Shapefile boundary:**
             - Covers 268 LSOAs
             - Includes Bristol city proper
-            - PLUS peripheral LSOAs that cross
-              into South Gloucestershire and
-              North Somerset
-
-            These boundary LSOAs genuinely have
-            residents and house sales — but they
-            sit outside the Avon & Somerset Police
-            operational recording area.
+            - PLUS peripheral LSOAs crossing into
+              South Gloucestershire and North Somerset
+            - These LSOAs have residents and house
+              sales — but sit outside Avon & Somerset
+              Police's operational recording area
             """)
 
-        with col_e2:
+        with why_col2:
             st.markdown("""
             **The Police.uk Crime boundary:**
             - Covers only 189 LSOAs
-            - Strictly within Avon & Somerset
-              Police beat boundaries
-            - Peripheral LSOAs recorded under
+            - Strictly within Avon & Somerset Police
+              beat boundaries
+            - Peripheral LSOAs recorded by
               neighbouring force areas instead
-
-            This is a **data alignment limitation**
-            — two government datasets using
-            different geographic boundaries.
+            - This is a **data alignment limitation**
+              — two government datasets using
+              different geographic boundaries
             """)
 
         st.markdown("---")
 
-        # Where are they on the map?
-        st.markdown("#### 📍 Where are the missing LSOAs?")
-        st.markdown("""
-        The missing LSOAs map (generated during investigation) showed
-        they are **not in the city centre** — they cluster on Bristol's
-        **outer edges**, confirming the boundary mismatch explanation:
-        """)
-
-        loc_col1, loc_col2 = st.columns(2)
-        with loc_col1:
-            st.markdown("""
-            **Missing areas confirmed:**
-            - 🔴 Large cluster — **north-west** (bordering S. Gloucestershire)
-            - 🔴 Smaller cluster — **north-east** border
-            - 🔴 Strip along **east** boundary
-            - 🔴 Band along **south** boundary (bordering N. Somerset)
-            - 🔴 Small **harbour** area cluster
-            """)
-        with loc_col2:
-            st.info(
-                "💡 If the missing areas were city-centre commercial zones "
-                "(as initially assumed), they would appear in the centre "
-                "of the map. The fact that they appear on the **outer edges** "
-                "proves this is a boundary mismatch — not a residential "
-                "population issue."
-            )
-
-        st.markdown("---")
-
-        # What this means
+        # ── What this means ────────────────────────────────────────────────────
         st.markdown("#### ✅ What this means for the analysis")
+        m1, m2, m3 = st.columns(3)
 
-        imp1, imp2, imp3 = st.columns(3)
-
-        with imp1:
+        with m1:
             st.markdown("""
             **Is the analysis valid?**
 
             Yes — the 182 LSOAs in the final
-            dataset represent the core of
-            Bristol where both housing market
-            data AND police crime data are
-            reliably available.
+            dataset represent the core of Bristol
+            where both housing market data AND
+            police crime data are reliably
+            available.
             """)
 
-        with imp2:
+        with m2:
             st.markdown("""
             **Is it a limitation?**
 
-            Yes — peripheral Bristol LSOAs
-            are excluded. The analysis
-            understates the full geographic
-            scope of Bristol and cannot make
-            claims about boundary areas.
+            Yes — peripheral Bristol LSOAs are
+            excluded. The analysis understates
+            the full geographic scope of Bristol
+            and cannot make claims about
+            boundary areas.
             """)
 
-        with imp3:
+        with m3:
             st.markdown("""
             **How would you fix it?**
 
             Clip the shapefile to the exact
             Police.uk boundary **before** merging,
             or use a left join with explicit
-            zero-filling for missing LSOAs
-            rather than silently dropping them.
+            zero-filling for missing LSOAs rather
+            than silently dropping them in the
+            inner join.
             """)
 
         st.success(
             "✅ **Conclusion:** The missing areas are an acknowledged "
             "boundary alignment limitation between ONS geographic boundaries "
-            "and Police.uk recording boundaries. All 86 missing LSOAs were "
-            "identified, diagnosed, and mapped. The core analysis of Bristol's "
-            "182 reliably-covered LSOAs remains valid and interpretable."
+            "and Police.uk recording boundaries. The majority were identified "
+            "and diagnosed as peripheral boundary cases. A central cluster "
+            "near the harbour adds honest uncertainty that warrants further "
+            "investigation. The core analysis of Bristol's 182 reliably-covered "
+            "LSOAs remains valid and interpretable."
         )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1660,9 +1792,6 @@ elif page == "🔍  Key Findings":
             "Omitted variables: deprivation, property size, age, condition",
             "GWR sensitive to bandwidth choice",
             "Local estimates less stable than global OLS",
-            "Boundary mismatch: ONS shapefile (268 LSOAs) vs Police.uk "
-            "recording area (189 LSOAs) — 86 peripheral LSOAs excluded "
-            "due to missing crime data (see Data Coverage tab for full investigation)",
         ]:
             st.markdown(f"- {lim}")
 
