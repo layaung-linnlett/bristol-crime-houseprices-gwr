@@ -38,7 +38,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-DATA_DIR = Path("data")
+DATA_DIR = Path("data") / "processed"
+RAW_DATA_DIR = Path("data") / "raw"
 
 # ── Data loaders ───────────────────────────────────────────────────────────────
 @st.cache_data
@@ -65,9 +66,9 @@ def load_summary_stats():
 
 @st.cache_data
 def load_house_clean():
-    # Try CSV first, then ZIP
+    # Try the already-extracted CSV first, then the shipped ZIP in data/raw/
     csv_path = DATA_DIR / "house_prices_bristol_clean.csv"
-    zip_path = DATA_DIR / "house_prices_bristol_clean.zip"
+    zip_path = RAW_DATA_DIR / "house_prices_bristol_clean.zip"
     if csv_path.exists():
         return pd.read_csv(csv_path)
     elif zip_path.exists():
@@ -76,9 +77,9 @@ def load_house_clean():
 
 @st.cache_data
 def load_crime_clean():
-    # Try CSV first, then ZIP
+    # Try the already-extracted CSV first, then the shipped ZIP in data/raw/
     csv_path = DATA_DIR / "crime_bristol_clean.csv"
-    zip_path = DATA_DIR / "crime_bristol_clean.zip"
+    zip_path = RAW_DATA_DIR / "crime_bristol_clean.zip"
     if csv_path.exists():
         df = pd.read_csv(csv_path)
     elif zip_path.exists():
@@ -169,9 +170,8 @@ def make_choropleth(geojson, locations, z, colorscale,
 
 def show_data_warning():
     st.warning(
-        "⚠️ Data files not found in `data/`. "
-        "Copy processed outputs from Google Drive to the `data/` folder. "
-        "See the README for instructions."
+        "⚠️ Data files not found in `data/processed/`. "
+        "Run the analysis notebook first, or see the README for setup instructions."
     )
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ elif page == "📊  Exploratory Analysis":
                 f"with the predictors."
             )
         else:
-            st.warning("⚠️ house_prices_bristol_clean.csv/zip not found in data/")
+            st.warning("⚠️ house_prices_bristol_clean.csv/zip not found in data/processed/ or data/raw/")
 
     # ── Tab 2 — Crime trends ───────────────────────────────────────────────────
     with tab2:
@@ -540,7 +540,7 @@ elif page == "📊  Exploratory Analysis":
                 "dominant driver of neighbourhood crime levels across Bristol."
             )
         else:
-            st.warning("⚠️ crime_bristol_clean.csv/zip not found in data/")
+            st.warning("⚠️ crime_bristol_clean.csv/zip not found in data/processed/ or data/raw/")
 
     # ── Tab 3 — Spatial maps ───────────────────────────────────────────────────
     with tab3:
@@ -613,8 +613,8 @@ elif page == "📊  Exploratory Analysis":
             g4.metric("Significant?",     "Yes (p < 0.05)")
         else:
             st.warning(
-                "⚠️ regression_dataset.geojson not found in data/. "
-                "Upload it from Google Drive to enable the maps.")
+                "⚠️ regression_dataset.geojson not found in data/processed/. "
+                "Run the analysis notebook first to generate it.")
 
     # ── Tab 4 — Data Coverage Investigation ───────────────────────────────────
     with tab4:
@@ -843,10 +843,10 @@ elif page == "📊  Exploratory Analysis":
         elif DATA_AVAILABLE and full_boundaries is None:
             st.info(
                 "📂 **To display the missing LSOAs map**, add the full ONS "
-                "boundary file to your `data/` folder:\n\n"
+                "boundary file to the `data/processed/` folder:\n\n"
                 "1. Download **LSOA (Dec 2021) Boundaries UK BGC** from "
                 "[ONS Geoportal](https://geoportal.statistics.gov.uk/)\n"
-                "2. Convert to GeoJSON and save as `data/full_boundaries.geojson`\n"
+                "2. Convert to GeoJSON and save as `data/processed/full_boundaries.geojson`\n"
                 "3. Restart the app\n\n"
                 "The map will then show all 268 LSOAs with missing ones "
                 "highlighted in red."

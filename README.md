@@ -1,224 +1,93 @@
-# Bristol Crime & House Prices — Spatial Analysis Using GWR
+# Bristol Crime & House Prices — where crime actually moves prices, and where it doesn't
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Google%20Colab-orange)](https://colab.research.google.com/)
+Standard regression says crime knocks about 7.5% off house prices across Bristol. That single number is misleading: it hides the fact that the true effect ranges from a 22.6% price penalty in some neighbourhoods to a slight positive association in others. This project uses Geographically Weighted Regression (GWR) to model the crime–price relationship separately for each of Bristol's 182 neighbourhoods (LSOAs), rather than forcing one national-style average onto a city where local context clearly dominates. The spatially-varying model explains 73.9% of price variation, against just 10.8% for the conventional global model — a result confirmed by a formal spatial autocorrelation test (Moran's I = 0.5408, p = 0.001).
 
-A spatial analysis of the relationship between neighbourhood crime rates and house prices across Bristol Lower Layer Super Output Areas (LSOAs), 2021–2025, using Geographically Weighted Regression (GWR).
+## Key Findings
 
----
+- **A single global model is the wrong tool for this question.** The standard regression (OLS) explains only 10.8% of house price variation (R² = 0.108); allowing the crime effect to vary by neighbourhood (GWR) lifts that to 73.9% (R² = 0.739) using the exact same five predictors.
+- **The effect of crime on price varies from −22.6% to +2.6% depending on the area** — the GWR crime coefficient ranges from −0.256 to +0.025 across Bristol's 182 LSOAs, compared to a single flat −7.5% under the standard model.
+- **76% of Bristol neighbourhoods show a real, negative crime-to-price effect**; the remaining 24% — mostly inner-city areas — have strong enough location advantages (schools, transport, proximity to the centre) to offset crime's usual price penalty.
+- **Neighbouring areas have statistically similar pricing errors** (Moran's I = 0.5408, p = 0.001), which is the formal statistical justification for why a spatial model is necessary here rather than a one-size-fits-all regression.
+- Built on **34,543 house transactions** and **159,666 recorded crimes** across Bristol, 2021–2025.
 
-## Project overview
+## Tech Stack
 
-This project investigates whether and how crime levels influence house prices across Bristol's 182 LSOAs, and crucially, **how this relationship varies spatially** across the city. A global OLS baseline is compared against GWR to demonstrate that a single average effect conceals fundamentally different local dynamics across Bristol's neighbourhoods.
+| Tool | Purpose |
+|------|---------|
+| pandas, numpy | Data cleaning and aggregation |
+| geopandas, shapely, pyproj | Spatial joins, geometry, coordinate transforms |
+| statsmodels, scikit-learn | OLS regression, VIF diagnostics |
+| mgwr | Geographically Weighted Regression |
+| esda, libpysal | Moran's I spatial autocorrelation test |
+| matplotlib, seaborn | Static charts |
+| plotly, kaleido | Interactive maps + static image export |
+| streamlit | Interactive dashboard |
 
-### Key findings
+## Methodology
 
-| Metric | OLS | GWR |
-|--------|-----|-----|
-| R² | 0.108 | 0.739 |
-| Adjusted R² | 0.083 | 0.662 |
-| AICc | −84.17 | −209.48 |
+1. **Clean and filter** HM Land Registry (house prices) and Police.uk (crime) records to Bristol, removing price outliers via the 1.5×IQR rule.
+2. **Aggregate to LSOA level** (182 neighbourhoods) — median price, sales volume, property mix, total crimes.
+3. **Engineer features**: distance to city centre, school density, distance to nearest bus stop.
+4. **Check multicollinearity (VIF)** — `prop_flats` and `prop_leasehold` were near-duplicates (VIF 29.6 and 34.7), so `prop_leasehold` was dropped; all remaining VIF values fell below 5.
+5. **Fit a global OLS baseline**, then test its residuals for spatial autocorrelation with **Moran's I** — a significant positive result (I = 0.5408, p = 0.001) is the formal evidence that a single global coefficient is hiding real neighbourhood-level variation.
+6. **Fit GWR** with an adaptive bisquare kernel (bandwidth selected automatically by minimising AICc, giving 57 neighbours) — this produces a separate crime coefficient for every LSOA instead of one number for the whole city.
+7. **Compare models** on R², adjusted R² and AICc, then visualise where the local coefficients diverge from the global average.
 
-- **Moran's I = 0.5408** (p = 0.001) on OLS residuals confirms strong spatial autocorrelation — GWR is statistically justified
-- **GWR crime coefficients range from −0.2562 to +0.0253** across LSOAs — the global average of −0.078 masks fundamentally different local dynamics
-- **76% of LSOAs** show a meaningfully negative crime effect (coef < −0.05)
-- **High-crime, high-price hotspots** have nearly double the school density of other LSOAs, explaining why crime does not suppress prices in those areas
+GWR was chosen over a global model specifically *because* Moran's I confirmed the OLS residuals were spatially clustered — that test result is the evidence that justifies the more complex spatial model, rather than using it by default.
 
----
-
-## Repository structure
+## Project Structure
 
 ```
 bristol-crime-houseprices-gwr/
-│
-├── notebooks/
-│   └── GWR_crime_price_project.ipynb   # Main analysis notebook
-│
 ├── data/
-│   ├── raw/                                      # Raw data 
-│   │   ├── house_prices/                         # HM Land Registry pp-YYYY.csv files
-│   │   ├── crime/                                # Police.uk monthly CSV files
-│   │   ├── geo/                                  # LSOA shapefile + postcode directory
-│   │   ├── schools-lep.csv                       # School locations
-│   │   └── Bus_Stops.csv                         # Bristol bus stop locations
-│   └── processed/                               
-│       ├── house_prices_bristol_clean.csv
-│       ├── crime_bristol_clean.csv
-│       └── regression_dataset.geojson
-│
-├── outputs/                                      
-│   ├── price_distribution.png
-│   ├── crime_trends.png
-│   ├── correlation_heatmap.png
-│   ├── ols_coefficients.png
-│   ├── scatter_crime_price.html
-│   ├── map_price_crime.png
-│   ├── map_ols_residuals.png
-│   ├── map_gwr_coefficients.png
-│   ├── model_comparison.csv
-│   └── summary_statistics.json
-│
-├── requirements.txt                              # Python dependencies
-├── LICENSE                                       # MIT licence
-└── README.md                                     # This file
+│   ├── raw/                              # Cleaned transaction/incident-level snapshots (zipped)
+│   │   ├── house_prices_bristol_clean.zip
+│   │   └── crime_bristol_clean.zip
+│   └── processed/                        # Final analysis-ready data (shipped, no download needed)
+│       ├── regression_dataset.geojson    # 182 LSOAs, all model variables + GWR/OLS results
+│       ├── summary_statistics.json       # Headline model metrics
+│       └── full_boundaries.geojson       # All 268 Bristol-area LSOA boundaries
+├── notebooks/
+│   └── GWR_crime_price_project.ipynb     # Full analysis: cleaning → OLS → GWR → conclusions
+├── outputs/
+│   └── figures/                          # 9 saved charts (static PNGs + 1 interactive HTML)
+├── src/
+│   ├── data_loading.py                   # Load raw price/crime/geo data
+│   ├── cleaning.py                       # Bristol filtering, outlier removal
+│   ├── aggregation.py                    # Transaction-level → LSOA-level aggregation
+│   ├── features.py                       # Distance/school/transport feature engineering
+│   ├── modelling.py                      # OLS, GWR, Moran's I, model comparison
+│   └── visualization.py                  # All 8 chart-producing functions
+├── app.py                                # Interactive Streamlit dashboard
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
----
-
-## Data sources
-
-All data is openly available. Download and place in the `data/raw/` directories as shown above.
-
-| Dataset | Source | Period |
-|---------|--------|--------|
-| House price (price-paid) | [HM Land Registry](https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads) | 2021–2025 |
-| Crime records | [Police.uk](https://data.police.uk/data/) | 2021–2025 |
-| LSOA boundaries | [ONS Geoportal](https://geoportal.statistics.gov.uk/) | 2021 |
-| Postcode-to-LSOA lookup | [ONS Geoportal](https://geoportal.statistics.gov.uk/) | 2025 |
-| School locations | [West of England Combined Authority](https://opendata.westofengland-ca.gov.uk/explore/dataset/schools-lep/table/) | 2024 |
-| Bus stops | [Bristol Open Data](https://opendata.bristol.gov.uk/datasets/bus-stops-2/explore) | Current |
-
----
-
-## Methods
-
-### Pipeline overview
-
-```
-Raw data (5 sources)
-    → Data cleaning & filtering (Bristol only, IQR outlier removal)
-    → LSOA-level aggregation (prices, crimes, housing composition)
-    → Feature engineering (log transforms, distances, school density)
-    → Regression dataset (182 LSOAs, GeoDataFrame)
-    → Exploratory analysis (maps, heatmap, t-test)
-    → VIF diagnostic (removed prop_leasehold, VIF > 29)
-    → OLS baseline (statsmodels, full inference)
-    → Moran's I (spatial autocorrelation test)
-    → GWR (adaptive bisquare kernel, AICc bandwidth selection)
-    → Model comparison + visualisation
-    → Additional analysis (hotspots, property types)
-```
-
-### Model specification
-
-```
-log(median_price) = β₀ + β₁·log(crime) + β₂·prop_flats
-                      + β₃·dist_centre_km + β₄·schools_count
-                      + β₅·dist_nearest_bus_km + ε
-```
-
-**Why `prop_leasehold` was excluded:** Initial VIF check revealed severe collinearity between `prop_flats` (VIF = 29.64) and `prop_leasehold` (VIF = 34.73). In the UK, flats are almost always leasehold, so the two variables capture nearly identical information. `prop_leasehold` was removed; all remaining VIF values fell below 5.
-
----
-
-## Setup and usage
-
-### Option 1 — Google Colab (recommended)
-
-1. Upload the notebook to Google Colab
-2. Mount your Google Drive
-3. Place raw data in `My Drive/Bristol_Project/data/raw/`
-4. Run all cells — the smart execute cell auto-detects saved outputs
-
-```python
-# The execute cell handles first run vs restart automatically
-# First run: runs full pipeline (~10–15 minutes for GWR)
-# After restart: loads from saved GeoJSON (~30 seconds)
-```
-
-### Option 2 — Local Jupyter
+## How To Run
 
 ```bash
 git clone https://github.com/layaung-linnlett/bristol-crime-houseprices-gwr.git
 cd bristol-crime-houseprices-gwr
 pip install -r requirements.txt
-jupyter notebook notebooks/individual_project_final_version.ipynb
+
+# Run the analysis notebook (works immediately — no data download required)
+jupyter notebook notebooks/GWR_crime_price_project.ipynb
+
+# Or launch the interactive dashboard
+streamlit run app.py
 ```
 
-Update `BASE_PATH` in the notebook to point to your local data directory.
+The notebook detects whether it's running in Google Colab or locally and picks the right file paths automatically. Rebuilding the pipeline from the original raw government sources (rather than the shipped cleaned snapshot) is also supported — see `data/README.md` for download instructions.
 
----
+## Limitations & Future Work
 
-## Visualisations produced
+- **Cross-sectional, not causal.** This analysis shows association, not causation — crime and prices may both be responding to unmeasured factors like deprivation or housing tenure mix.
+- **Crime is treated as one undifferentiated count.** Violent crime, burglary and anti-social behaviour are all weighted equally; disaggregating by crime type could reveal different spatial price effects for each.
+- **GWR bandwidth choice affects local estimates.** The adaptive bisquare kernel and AICc-selected bandwidth (57 neighbours) are a defensible choice, but local coefficients are inherently less stable than a single global estimate — they should be read as a pattern, not a precise per-LSOA prediction.
 
-| Plot | Type | Description |
-|------|------|-------------|
-| Price distribution | Static (matplotlib) | Right-skewed histogram justifying log transform |
-| Crime trends | Static (matplotlib) | Annual counts by top 5 crime types, 2021–2025 |
-| Correlation heatmap | Static (seaborn) | Pairwise correlations — complements VIF check |
-| OLS coefficient plot | Static (matplotlib) | Forest plot with 95% CIs, coloured by significance |
-| Crime vs price scatter | Interactive (Plotly) | Log-log scatter coloured by distance to centre |
-| Price & crime maps | Interactive (Plotly) | Side-by-side choropleth — spatial EDA |
-| OLS residual map | Interactive (Plotly) | Diverging scale — visualises Moran's I result |
-| GWR coefficient maps | Interactive (Plotly) | Local crime & distance-to-centre coefficients |
+## Contact
 
----
+**La Yaung Linn Lett** — BSc Data Science and AI, University of the West of England, Bristol, 2026
 
-## Key libraries
-
-| Library | Purpose |
-|---------|---------|
-| `pandas`, `numpy` | Data handling |
-| `geopandas`, `shapely` | Geospatial operations |
-| `statsmodels` | OLS regression with full inference |
-| `mgwr` | Geographically Weighted Regression |
-| `esda`, `libpysal` | Moran's I spatial autocorrelation |
-| `matplotlib`, `seaborn` | Static visualisation |
-| `plotly` | Interactive visualisation |
-
----
-
-## Results summary
-
-```
-Dataset
-  LSOAs analysed     : 182
-  House transactions : 34,543
-  Crime records      : 159,666
-  Study period       : 2021–2025
-
-Spatial diagnostics
-  Moran's I          : 0.5408  (p = 0.001) → GWR justified
-
-OLS baseline
-  R²                 : 0.108
-  Crime coefficient  : −0.078  (≈ −7.5% per log crime unit)
-
-GWR model
-  R²                 : 0.739  
-  Bandwidth          : 59 neighbours (adaptive)
-  Crime coef range   : −0.256 to +0.025
-  76% of LSOAs show meaningfully negative crime effect
-```
-
----
-
-## Limitations
-
-- Cross-sectional analysis — cannot establish causality
-- Total crime count aggregates all offence types equally
-- Key omitted variables: deprivation index, property size, age, condition
-- GWR sensitive to bandwidth choice; local estimates less stable than global OLS
-
----
-
-## Author
-
-**La Yaung Linn Lett**  
-BSc Data Science and AI  
-University of the West of England, Bristol  
-2026
-
----
-
-## Licence
-
-This project is licensed under the MIT Licence — see [LICENSE](LICENSE) for details.
-
----
-
-## Acknowledgements
-
-Supervisor: Eman Qaddoumi  
-Data: HM Land Registry, Police.uk, ONS, West of England Combined Authority, Bristol City Council
+[GitHub](https://github.com/layaung-linnlett) | [LinkedIn](https://linkedin.com/in/your-profile)

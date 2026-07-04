@@ -1,36 +1,46 @@
 # Data directory
 
-Raw data is **not tracked** in this repository due to file size.
-Download each dataset from the sources below and place in the correct folder.
+**You do not need to download anything to run this project.** The cleaned,
+aggregated data is already shipped in `data/raw/*.zip` and `data/processed/`,
+so the notebook and the Streamlit app both run out of the box.
+
+The instructions below are only needed if you want to rebuild the entire
+pipeline from the original government sources rather than the shipped
+snapshot — for example, to extend the analysis period beyond 2021–2025.
 
 ## Folder structure
 
 ```
 data/
 ├── raw/
-│   ├── house_prices/          ← HM Land Registry price-paid CSV files
+│   ├── house_prices_bristol_clean.zip   ← shipped: cleaned Land Registry transactions
+│   ├── crime_bristol_clean.zip          ← shipped: cleaned Police.uk incidents
+│   │
+│   ├── house_prices/          ← only if rebuilding from scratch: HM Land Registry CSVs
 │   │   ├── pp-2021.csv
 │   │   ├── pp-2022.csv
 │   │   ├── pp-2023.csv
 │   │   ├── pp-2024.csv
 │   │   └── pp-2025.csv
 │   │
-│   ├── crime/                 ← Police.uk monthly CSV files (all in one folder)
+│   ├── crime/                 ← only if rebuilding from scratch: Police.uk monthly CSVs
 │   │   └── YYYY-MM/
 │   │       └── YYYY-MM-avon-and-somerset-street.csv
 │   │
-│   ├── geo/                   ← LSOA shapefile + postcode directory
+│   ├── geo/                   ← only if rebuilding from scratch: LSOA shapefile + postcode directory
 │   │   ├── Lower_Layer_Super_Output_Areas_2021_(Precise)/
 │   │   │   └── Lower_Layer_Super_Output_Areas_2021_(Precise).shp
 │   │   └── postcode_directory_2025.csv
 │   │
-│   ├── schools-lep.csv        ← School locations
-│   └── Bus_Stops.csv          ← Bristol bus stop locations
+│   ├── schools-lep.csv        ← only if rebuilding from scratch: school locations
+│   └── Bus_Stops.csv          ← only if rebuilding from scratch: Bristol bus stop locations
 │
-└── processed/                 ← Auto-generated when you run the notebook
-    ├── house_prices_bristol_clean.csv
-    ├── crime_bristol_clean.csv
-    └── regression_dataset.geojson
+└── processed/                  ← shipped: final analysis-ready data
+    ├── regression_dataset.geojson    ← 182 LSOAs, all model variables + GWR/OLS results
+    ├── summary_statistics.json       ← headline model metrics
+    ├── full_boundaries.geojson       ← all 268 Bristol-area LSOA boundaries
+    ├── house_prices_bristol_clean.csv  ← auto-extracted from the zip on first run
+    └── crime_bristol_clean.csv         ← auto-extracted from the zip on first run
 ```
 
 ## Download instructions
