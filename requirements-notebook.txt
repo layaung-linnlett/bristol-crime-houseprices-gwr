@@ -1,21 +1,31 @@
-# Dependencies for running the full analysis notebook (data cleaning,
-# aggregation, OLS/GWR modelling, static + interactive plots).
-# The Streamlit app (app.py) only needs requirements.txt — it does not
-# use geopandas or the statistical/geospatial stack below.
+# Data handling
+pandas==3.0.3
+numpy==2.5.0
 
-jupyter
-pandas
-numpy
-geopandas
-shapely
-statsmodels
-mgwr
-esda
-libpysal
-scikit-learn
-matplotlib
-seaborn
-scipy
-plotly
-pyproj
-folium
+# Spatial data
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.7.2
+
+# Statistics and regression
+scipy==1.18.0
+statsmodels==0.14.6
+scikit-learn==1.9.0
+
+# Spatial statistics and Geographically Weighted Regression
+mgwr==2.2.1
+esda==2.10.0
+libpysal==4.15.0
+
+# Visualisation
+matplotlib==3.11.0
+seaborn==0.13.2
+plotly==6.8.0
+kaleido==1.3.0
+
+# Interactive dashboard
+streamlit==1.58.0
+
+# Notebook environment
+jupyter==1.1.1
+notebook==7.6.0
