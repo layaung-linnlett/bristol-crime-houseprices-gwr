@@ -10,6 +10,24 @@ Standard regression says crime knocks about 7.5% off house prices across Bristol
 - **Neighbouring areas have statistically similar pricing errors** (Moran's I = 0.5408, p = 0.001), which is the formal statistical justification for why a spatial model is necessary here rather than a one-size-fits-all regression.
 - Built on **34,543 house transactions** and **159,666 recorded crimes** across Bristol, 2021–2025.
 
+## Screenshots
+
+**Local crime coefficient by LSOA — the result the global model hides.** Red areas are where crime carries a real price penalty; the pale and blue areas to the east are where it doesn't. A single OLS coefficient averages this entire map down to one number.
+
+![GWR local coefficients by LSOA](outputs/figures/map_gwr_coefficients.png)
+
+**OLS residuals.** Neighbouring areas have similar errors — the visual counterpart to Moran's I = 0.5408, and the reason a spatial model is warranted here.
+
+![OLS residuals map](outputs/figures/map_ols_residuals.png)
+
+**Crime against price across the 182 LSOAs.**
+
+![Crime vs price scatter](outputs/figures/scatter_crime_price.png)
+
+An interactive version of the scatter is at `outputs/figures/scatter_crime_price.html`, and the dashboard has the rest.
+
+---
+
 ## Tech Stack
 
 | Tool | Purpose |
@@ -28,7 +46,7 @@ Standard regression says crime knocks about 7.5% off house prices across Bristol
 1. **Clean and filter** HM Land Registry (house prices) and Police.uk (crime) records to Bristol, removing price outliers via the 1.5×IQR rule.
 2. **Aggregate to LSOA level** (182 neighbourhoods) — median price, sales volume, property mix, total crimes.
 3. **Engineer features**: distance to city centre, school density, distance to nearest bus stop.
-4. **Check multicollinearity (VIF)** — `prop_flats` and `prop_leasehold` were near-duplicates (VIF 29.6 and 34.7), so `prop_leasehold` was dropped; all remaining VIF values fell below 5.
+4. **Check multicollinearity (VIF)** — `prop_flats` and `prop_leasehold` were near-duplicates (VIF 12.7 and 12.9, and r = 0.96), so `prop_leasehold` was dropped; every remaining VIF is below 5.
 5. **Fit a global OLS baseline**, then test its residuals for spatial autocorrelation with **Moran's I** — a significant positive result (I = 0.5408, p = 0.001) is the formal evidence that a single global coefficient is hiding real neighbourhood-level variation.
 6. **Fit GWR** with an adaptive bisquare kernel (bandwidth selected automatically by minimising AICc, giving 57 neighbours) — this produces a separate crime coefficient for every LSOA instead of one number for the whole city.
 7. **Compare models** on R², adjusted R² and AICc, then visualise where the local coefficients diverge from the global average.
@@ -59,26 +77,32 @@ bristol-crime-houseprices-gwr/
 │   ├── modelling.py                      # OLS, GWR, Moran's I, model comparison
 │   └── visualization.py                  # All 8 chart-producing functions
 ├── app.py                                # Interactive Streamlit dashboard
-├── requirements.txt
+├── requirements.txt                      # Dashboard dependencies
+├── requirements-notebook.txt             # Analysis pipeline dependencies
 ├── .gitignore
 └── README.md
 ```
 
 ## How To Run
 
+**Requires Python 3.12 or later** — the pinned `numpy` and `scipy` publish no wheels for anything older.
+
+Dependencies are split in two, so deploying the dashboard doesn't drag in the heavy geospatial stack:
+
 ```bash
 git clone https://github.com/layaung-linnlett/bristol-crime-houseprices-gwr.git
 cd bristol-crime-houseprices-gwr
+
+# Dashboard only (streamlit, plotly, pandas, numpy, pyproj)
 pip install -r requirements.txt
-
-# Run the analysis notebook (works immediately — no data download required)
-jupyter notebook notebooks/GWR_crime_price_project.ipynb
-
-# Or launch the interactive dashboard
 streamlit run app.py
+
+# Analysis notebook — needs geopandas, mgwr, esda, statsmodels and friends
+pip install -r requirements-notebook.txt
+jupyter notebook notebooks/GWR_crime_price_project.ipynb
 ```
 
-The notebook detects whether it's running in Google Colab or locally and picks the right file paths automatically. Rebuilding the pipeline from the original raw government sources (rather than the shipped cleaned snapshot) is also supported — see `data/README.md` for download instructions.
+The notebook runs immediately against the cleaned snapshot in `data/` — no download needed — and detects whether it's running in Colab or locally, picking the right paths either way. Rebuilding from the original raw government sources is also supported; see `data/README.md`.
 
 ## Limitations & Future Work
 

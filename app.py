@@ -348,7 +348,7 @@ elif page == "📊  Exploratory Analysis":
         unsafe_allow_html=True)
     st.markdown(
         '<div class="sub-header">Understanding Bristol\'s crime and '
-        'housing landscape before modelling</div>',
+        'housing patterns before modelling</div>',
         unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(
@@ -1594,7 +1594,7 @@ elif page == "🔍  Key Findings":
             low-crime areas — approximately 7–10% cheaper on average.
 
             **What this means:** The negative relationship is real and
-            statistically robust. It is not driven by outliers — the
+            statistically significant. It is not driven by outliers — the
             Spearman (rank-based) result matches Pearson exactly.
             """)
         with col2:
