@@ -85,7 +85,7 @@ bristol-crime-houseprices-gwr/
 
 ## How To Run
 
-**Requires Python 3.12 or later** — the pinned `numpy` and `scipy` publish no wheels for anything older.
+The dashboard runs on **Python 3.11+**. Reproducing the analysis notebook needs **Python 3.12+**, because the pinned `numpy` and `scipy` publish no wheels below that.
 
 Dependencies are split in two, so deploying the dashboard doesn't drag in the heavy geospatial stack:
 
