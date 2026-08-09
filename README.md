@@ -1,6 +1,6 @@
 # Bristol Crime & House Prices — where crime actually moves prices, and where it doesn't
 
-**Live dashboard:** https://bristol-crime-houseprices-gwr-ltekhgkvespsoc3hi7e4ar.streamlit.app
+**Live dashboard:** https://bristol-crime-houseprices-gwr.streamlit.app
 
 Standard regression says crime knocks about 7.5% off house prices across Bristol. That single number is misleading: it hides the fact that the true effect ranges from a 22.6% price penalty in some neighbourhoods to a slight positive association in others. This project uses Geographically Weighted Regression (GWR) to model the crime–price relationship separately for each of Bristol's 182 neighbourhoods (LSOAs), rather than forcing one national-style average onto a city where local context clearly dominates. The spatially-varying model explains 73.9% of price variation, against just 10.8% for the conventional global model — a result confirmed by a formal spatial autocorrelation test (Moran's I = 0.5408, p = 0.001).
 
