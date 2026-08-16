@@ -56,3 +56,9 @@ Thumbs.db
 *.shx
 *.prj
 *.cpg
+
+# Claude Code local tooling config
+.claude/
+.pytest_cache/
+
+# Files over ~50 MB should not be committed - use Git LFS or a download step instead.

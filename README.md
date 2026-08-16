@@ -70,7 +70,8 @@ bristol-crime-houseprices-gwr/
 ├── notebooks/
 │   └── GWR_crime_price_project.ipynb     # Full analysis: cleaning → OLS → GWR → conclusions
 ├── outputs/
-│   └── figures/                          # 9 saved charts (static PNGs + 1 interactive HTML)
+│   └── figures/                          # 9 static PNGs, 1 interactive HTML scatter,
+│                                         # and summary_statistics.json (headline metrics)
 ├── src/
 │   ├── data_loading.py                   # Load raw price/crime/geo data
 │   ├── cleaning.py                       # Bristol filtering, outlier removal
