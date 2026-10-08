@@ -211,14 +211,14 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     n_lsoas   = stats.get("n_lsoas",          182)
-    n_sales   = stats.get("n_house_sales",   34543)
-    n_crimes  = stats.get("n_crime_records", 159666)
+    n_sales   = stats.get("n_house_sales_in_model",   24318)
+    n_crimes  = stats.get("n_crime_records_in_model", 147689)
 
     st.markdown(f"""
     <div style="font-size:0.85rem; color:#444; line-height:2;">
         🏘️ &nbsp;<b>{n_lsoas:,}</b> LSOAs<br>
-        🏠 &nbsp;<b>{n_sales:,}</b> house sales<br>
-        🚨 &nbsp;<b>{n_crimes:,}</b> crime records<br>
+        🏠 &nbsp;<b>{n_sales:,}</b> house sales (in model)<br>
+        🚨 &nbsp;<b>{n_crimes:,}</b> crime records (in model)<br>
         📅 &nbsp;<b>2021–2025</b>
     </div>
     """, unsafe_allow_html=True)
@@ -276,8 +276,8 @@ if page == "🏠  Project Overview":
     c1, c2, c3, c4 = st.columns(4)
     for col, val, label in zip(
         [c1, c2, c3, c4],
-        ["182", "34,543", "159,666", "2021–2025"],
-        ["Bristol LSOAs", "House transactions", "Crime records", "Study period"]
+        ["182", "24,318", "147,689", "2021–2025"],
+        ["Bristol LSOAs", "House transactions (modelled)", "Crime records (modelled)", "Study period"]
     ):
         col.markdown(
             f'<div class="metric-card">'
@@ -297,7 +297,7 @@ if page == "🏠  Project Overview":
         A global OLS model treats every neighbourhood identically.
         **GWR allows the crime-price relationship to differ** between
         neighbourhoods — revealing that the effect ranges from strongly
-        negative to near-zero depending on local amenities.
+        negative to near-zero depending on the neighbourhood.
         """)
         st.markdown("### Pipeline")
         for step, detail in {
@@ -586,18 +586,16 @@ elif page == "📊  Exploratory Analysis":
                 ), use_container_width=True)
                 st.caption(
                     "🔴 **Highest crime** concentrated in the city centre "
-                    "and inner-city LSOAs. Outer and northern residential "
-                    "areas show markedly lower crime counts.")
+                    "and inner-city LSOAs; crime counts fall with distance "
+                    "from the centre.")
 
             st.warning(
-                "⚠️ **The spatial paradox:** Some city-centre LSOAs appear "
-                "**dark on both maps** — high crime AND high prices. This "
-                "directly contradicts a simple negative relationship and "
-                "suggests that **location advantages** (centrality, schools, "
-                "transport) can override the negative price effect of crime "
-                "in specific neighbourhoods. A global OLS model cannot capture "
-                "this — it forces a single average effect across all 182 LSOAs. "
-                "**This is why we need GWR.**"
+                "⚠️ **Why one number is not enough:** Some LSOAs appear "
+                "**dark on both maps** — high crime AND high prices. Price "
+                "level and the crime effect are different things: a "
+                "global OLS model forces a single average crime effect across "
+                "all 182 LSOAs, whereas GWR lets that effect differ by "
+                "neighbourhood. **This is why we need GWR.**"
             )
 
             # Quick stats
@@ -1352,23 +1350,34 @@ elif page == "🗺️  GWR Results":
             )
             st.plotly_chart(fig_gwr, use_container_width=True)
 
-            pct_neg = (
-                (reg_df["gwr_crime_coef"] < -0.05).sum()
-                / len(reg_df) * 100
-            )
+            strong = reg_df["gwr_crime_coef"] < -0.05
+            pct_neg = strong.sum() / len(reg_df) * 100
+            near = reg_df["dist_centre_km"] < 2
+            pct_near = strong[near].mean() * 100
             col_i1, col_i2 = st.columns(2)
             col_i1.error(
-                f"🔴 **{pct_neg:.0f}% of LSOAs (dark red):** Crime "
-                f"meaningfully lowers prices (coef < −0.05). Concentrated "
-                f"in outer and south-eastern Bristol where no strong "
-                f"amenity advantages exist to offset crime's negative signal."
+                f"🔴 **{pct_neg:.0f}% of LSOAs (dark red):** local crime "
+                f"coefficient below −0.05. This is a size threshold, not a "
+                f"significance test. The effect is strongest close to the "
+                f"centre: {pct_near:.0f}% of LSOAs within 2 km are in this group."
             )
             col_i2.info(
-                f"🔵 **{100-pct_neg:.0f}% of LSOAs (white/blue):** Crime "
-                f"has little or no negative price effect. Concentrated near "
-                f"the city centre where proximity, schools, and transport "
-                f"sustain demand despite elevated crime levels."
+                f"🔵 **{100-pct_neg:.0f}% of LSOAs (white/blue):** little or "
+                f"no negative local effect. These are further from the centre "
+                f"on average (median "
+                f"{reg_df.loc[~strong, 'dist_centre_km'].median():.1f} km, "
+                f"against {reg_df.loc[strong, 'dist_centre_km'].median():.1f} km "
+                f"for dark red) and mostly in the east of Bristol. "
+                f"This analysis does not establish why."
             )
+            st.caption(
+                f"Statistical reliability: "
+                f"{stats.get('pct_lsoas_sig_negative_5pct', 67.0):.0f}% of "
+                f"LSOAs have a significantly negative local effect (5% level) "
+                f"and {stats.get('pct_lsoas_sig_negative_corrected', 50.5):.0f}% "
+                f"after multiple-test correction; none is significantly "
+                f"positive. Local GWR t-values are optimistic, so read the "
+                f"range, not a single figure.")
         else:
             st.warning(
                 "GWR coefficient column not found. Re-run the save cell "
@@ -1570,8 +1579,8 @@ elif page == "🔍  Key Findings":
     </div>""", unsafe_allow_html=True)
     s5.markdown("""
     <div class="metric-card">
-        <div class="metric-value">76%</div>
-        <div class="metric-label">LSOAs with<br>meaningful negative<br>crime effect</div>
+        <div class="metric-value">67%</div>
+        <div class="metric-label">LSOAs with a<br>significant negative<br>crime effect</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1678,15 +1687,15 @@ elif page == "🔍  Key Findings":
 
             Converting to percentage terms:
             - **Strongest effect:** {(np.exp(gwr_min)-1)*100:.1f}% price
-              decrease per log crime unit (outer/south-east Bristol)
+              decrease per log crime unit (most crime-sensitive LSOAs)
             - **Global OLS:** {(np.exp(-0.0778)-1)*100:.1f}% (city-wide average)
-            - **Weakest effect:** +{(np.exp(gwr_max)-1)*100:.1f}% (near-zero,
-              city-centre LSOAs)
+            - **Weakest effect:** +{(np.exp(gwr_max)-1)*100:.1f}% (near zero
+              or slightly positive)
 
             The strongest local effect is nearly **3× larger** than the
-            global OLS estimate — meaning OLS systematically under-estimates
-            crime's impact in peripheral neighbourhoods and over-estimates
-            it in central ones.
+            global OLS estimate — meaning OLS understates the association
+            in the most affected neighbourhoods and overstates it where the
+            local effect is weak.
 
             **What this means:** Any policy using a single city-wide estimate
             will be wrong for most neighbourhoods.
@@ -1705,35 +1714,35 @@ elif page == "🔍  Key Findings":
                       f"≈ +{(np.exp(gwr_max)-1)*100:.1f}% effect")
 
     # Finding 5
-    with st.expander("✅ Finding 5 — Amenities explain the spatial paradox"):
+    with st.expander("✅ Finding 5 — High-crime, high-price areas still show a crime penalty"):
         col1, col2 = st.columns([1.5, 1])
         with col1:
             st.markdown("""
-            A small number of LSOAs show **high crime AND high prices**
-            simultaneously — apparently defying the overall negative
-            relationship. These hotspot LSOAs have:
+            Only **five LSOAs** are in the top quartile for **both crime and
+            price**. They look like exceptions, but their local GWR crime
+            coefficients are all clearly negative (**−0.12 to −0.19**, median
+            **−0.15** against **−0.11** across all LSOAs). They are expensive
+            areas where more crime is still associated with a lower price,
+            not areas where crime stops mattering.
 
-            - **74% more schools** per LSOA (1.20 vs 0.69)
-            - **Slightly better bus access** (0.162 vs 0.182 km)
-            - **Marginally more central** location (3.151 vs 3.217 km)
+            They have more schools on average (1.20 against 0.69 per LSOA),
+            but that is six schools across five LSOAs, so it supports no
+            conclusion. Distance to the centre (3.15 km against 3.22 km) and
+            bus access barely differ.
 
-            Strong educational provision in particular appears to sustain
-            housing demand even in high-crime areas. Parents and families
-            appear willing to accept higher local crime in exchange for
-            access to more schools.
-
-            **What this means:** Crime reduction is most effective at
-            raising prices in peripheral, amenity-poor areas. In central
-            areas, investing in schools and transport may be a more
-            powerful lever than crime reduction alone.
+            **What this means:** the spatial variation in the crime effect
+            is real (GWR fits far better than OLS) but this analysis does not
+            explain it. Deprivation, tenure mix and school quality may.
             """)
         with col2:
-            st.metric("Schools — hotspots",  "1.20 per LSOA")
-            st.metric("Schools — others",    "0.69 per LSOA",
-                      "−42% fewer",
+            st.metric("Hotspot LSOAs (n = 5)", "5 of 5",
+                      "have a local coefficient below −0.12",
                       delta_color="inverse")
-            st.metric("School density gap",  "+74%",
-                      "in high-crime, high-price areas")
+            st.metric("Median local coefficient", "−0.153",
+                      "all LSOAs: −0.115",
+                      delta_color="inverse")
+            st.metric("Schools per LSOA", "1.20 vs 0.69",
+                      "six schools in total; too few to conclude")
 
     st.markdown("---")
 
@@ -1744,26 +1753,27 @@ elif page == "🔍  Key Findings":
 
     with p1:
         st.markdown("""
-        **🏘️ Peripheral neighbourhoods**
+        **📍 Where the effect is strongest**
 
-        Crime reduction will have the **largest positive effect on house
-        prices** in outer and south-eastern Bristol — LSOAs with strong
-        negative GWR coefficients and limited amenity provision.
+        The local crime coefficient is most negative close to the centre
+        and in the north and south of the city: 93% of LSOAs within 2 km
+        have a coefficient below −0.05.
 
-        Targeted policing and community safety investment in these areas
-        is likely to deliver measurable property value uplift.
+        These are the places where a city-wide adjustment understates the
+        association most. This is an association, not evidence that
+        reducing crime would raise prices.
         """)
 
     with p2:
         st.markdown("""
-        **🏙️ City-centre neighbourhoods**
+        **🌅 Where the effect is weak**
 
-        In central, well-served areas where the GWR coefficient is near
-        zero, **investment in schools and transport** may be a more
-        effective lever for sustaining property values than crime
-        reduction alone.
+        In the 43 LSOAs with a coefficient of −0.05 or above, mostly in the
+        east of Bristol and further from the centre, a crime-based
+        adjustment has little support in this data.
 
-        Amenity provision sustains demand even where crime is elevated.
+        Why is not established here. Deprivation, tenure mix and school
+        quality are not measured and may explain it.
         """)
 
     with p3:

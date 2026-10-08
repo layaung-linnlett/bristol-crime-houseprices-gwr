@@ -27,5 +27,13 @@
   "ttest_p": 0.0002757115351234775,
   "ttest_significant": true,
   "gwr_bandwidth": 57,
-  "pct_lsoas_negative": 76.4
+  "pct_lsoas_negative_sign": 89.0,
+  "n_house_sales_in_model": 24318,
+  "pct_lsoas_sig_negative_5pct": 67.0,
+  "n_lsoas_sig_negative_corrected": 92,
+  "n_lsoas_sig_positive_5pct": 0,
+  "pct_lsoas_coef_below_minus_0_05": 76.4,
+  "pct_lsoas_sig_negative_corrected": 50.5,
+  "n_crime_records_in_model": 147689,
+  "n_lsoas_sig_negative_5pct": 122
 }
